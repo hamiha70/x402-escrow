@@ -66,7 +66,7 @@ format_balance() {
     if [ "$BALANCE" = "0" ]; then
         echo "0.00"
     else
-        awk "BEGIN {printf \"%.2f\", $BALANCE / 10^$DECIMALS}"
+        echo "scale=2; $BALANCE / (10^$DECIMALS)" | bc 2>/dev/null || echo "0.00"
     fi
 }
 
@@ -279,13 +279,13 @@ if [ -z "$AMOUNT" ]; then
 fi
 
 # Validate amount is a number
-if ! [[ "$AMOUNT" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+if ! [[ "$AMOUNT" =~ ^[0-9]*\.?[0-9]*$ ]]; then
     echo -e "${RED}Invalid amount format${NC}"
     exit 1
 fi
 
 # Convert to wei/smallest unit
-AMOUNT_WEI=$(awk "BEGIN {printf \"%.0f\", $AMOUNT * 10^$DECIMALS}")
+AMOUNT_WEI=$(echo "scale=0; $AMOUNT * (10^$DECIMALS)" | bc 2>/dev/null)
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
