@@ -1,0 +1,65 @@
+name: x402-tee-facilitator
+version: 1.0.0
+runtime: container
+image: ./Dockerfile
+
+# HTTP endpoints exposed by TEE
+endpoints:
+  - path: /tee-settle
+    methods: [POST]
+  - path: /balance/{address}
+    methods: [GET]
+  - path: /balance
+    methods: [GET]
+  - path: /health
+    methods: [GET]
+  - path: /attestation
+    methods: [GET]
+
+# Secrets managed by ROFL KMS (encrypted in TEE)
+secrets:
+  # RPC URLs for blockchain access
+  - BASE_SEPOLIA_RPC
+  - POLYGON_AMOY_RPC
+  - ARBITRUM_SEPOLIA_RPC
+  - OPTIMISM_SEPOLIA_RPC
+  - ARC_TESTNET_RPC
+  - ETHEREUM_SEPOLIA_RPC
+  
+  # Facilitator private keys (one per chain)
+  - TEE_FACILITATOR_PRIVATE_KEY_BASE
+  - TEE_FACILITATOR_PRIVATE_KEY_POLYGON
+  - TEE_FACILITATOR_PRIVATE_KEY_ARBITRUM
+  - TEE_FACILITATOR_PRIVATE_KEY_OPTIMISM
+  - TEE_FACILITATOR_PRIVATE_KEY_ARC
+  - TEE_FACILITATOR_PRIVATE_KEY_ETHEREUM
+  
+  # Omnibus vault addresses (injected from deployed-tee.env)
+  - OMNIBUS_VAULT_BASE_SEPOLIA
+  - OMNIBUS_VAULT_POLYGON_AMOY
+  - OMNIBUS_VAULT_ARBITRUM_SEPOLIA
+  - OMNIBUS_VAULT_OPTIMISM_SEPOLIA
+  - OMNIBUS_VAULT_ARC_TESTNET
+  - OMNIBUS_VAULT_ETHEREUM_SEPOLIA
+  
+  # USDC addresses
+  - USDC_BASE_SEPOLIA
+  - USDC_POLYGON_AMOY
+  - USDC_ARBITRUM_SEPOLIA
+  - USDC_OPTIMISM_SEPOLIA
+  - USDC_ARC_TESTNET
+  - USDC_ETHEREUM_SEPOLIA
+  
+  # Seller allowlist
+  - SELLER_WALLET_ADDRESS
+
+# Sealed storage (encrypted by TEE)
+storage:
+  - mount: /data
+    encrypted: true
+    persistent: true
+
+# Network configuration
+network:
+  allow_outbound: true  # Required for RPC calls to external chains
+

@@ -9,6 +9,7 @@
 ## 1. Design Overview
 
 Every deposit and spend uses **ephemeral addresses** derived deterministically from the buyer's master key. Each ephemeral address maintains an independent balance tracked via Poseidon commitment. Proofs demonstrate:
+
 1. Buyer controls the ephemeral address (key derivation)
 2. Buyer signed EIP-712 payment intent (x402 standard)
 3. Sufficient balance exists (commitment verification)
@@ -25,6 +26,7 @@ Every deposit and spend uses **ephemeral addresses** derived deterministically f
 ### Ephemeral Address Derivation
 
 **Off-chain** (TypeScript/buyer wallet):
+
 ```typescript
 function deriveEphemeralAddress(
   masterPrivateKey: bytes32,
@@ -33,16 +35,17 @@ function deriveEphemeralAddress(
   // Use Poseidon for SNARK-friendly derivation
   const salt = poseidon(["x402-zk-pool", derivationIndex]);
   const ephemeralSecret = poseidon([masterPrivateKey, salt]);
-  
+
   // Convert to Ethereum address (required for EVM compatibility)
   const pubKey = secp256k1.G * ephemeralSecret;
   const address = keccak256(pubKey)[12:32];
-  
+
   return address;
 }
 ```
 
 **In-circuit** (Noir proof):
+
 ```rust
 // 1. Derive ephemeral secret (Poseidon - 300 constraints)
 let salt = poseidon_hash(["x402-zk-pool", derivationIndex]);
@@ -55,6 +58,7 @@ assert(derivedAddress == ephemeralAddress);  // public input
 ```
 
 **Properties**:
+
 - Deterministic: Same (masterKey, index) → same address
 - Unlinkable: Cannot link addresses without masterKey
 - Recoverable: Buyer regenerates from master + index
@@ -67,6 +71,7 @@ commitment = Poseidon(balance, ephemeralAddress, localNonce)
 ```
 
 Where:
+
 - `balance`: Current USDC amount (uint256)
 - `ephemeralAddress`: Ethereum address (20 bytes, padded to 32)
 - `localNonce`: Per-address counter, starts at 0, increments each spend
@@ -76,6 +81,7 @@ Where:
 ### EIP-712 Authorization
 
 Standard x402 PaymentIntent signed by ephemeral address:
+
 ```solidity
 struct PaymentIntent {
     address buyer;      // ephemeralAddress
@@ -101,16 +107,16 @@ Verified in-circuit via ecrecover (required for x402 compliance).
 contract ZKVault {
     IERC20 public usdc;
     IVerifier public verifier;
-    
+
     struct EphemeralState {
         bytes32 balanceCommitment;  // Poseidon(balance, address, localNonce)
         uint256 localNonce;         // Increments per spend
     }
-    
+
     mapping(address => EphemeralState) public ephemeralStates;
     mapping(address => bool) public allowedSellers;
     address public owner;
-    
+
     event Deposit(address indexed ephemeralAddress, bytes32 commitment);
     event Spend(address indexed ephemeralAddress, address indexed seller, uint256 amount, bytes32 newCommitment);
 }
@@ -121,24 +127,25 @@ contract ZKVault {
 ```solidity
 function deposit(uint256 amount, bytes32 initialCommitment) external {
     address ephemeralAddress = msg.sender;
-    
+
     require(amount > 0, "Zero deposit");
     require(ephemeralStates[ephemeralAddress].balanceCommitment == bytes32(0), "Already initialized");
-    
+
     // Transfer USDC from ephemeral address
     usdc.transferFrom(ephemeralAddress, address(this), amount);
-    
+
     // Initialize state
     ephemeralStates[ephemeralAddress] = EphemeralState({
         balanceCommitment: initialCommitment,
         localNonce: 0
     });
-    
+
     emit Deposit(ephemeralAddress, initialCommitment);
 }
 ```
 
 **Two-step deposit flow** (preserves privacy):
+
 1. Buyer transfers USDC to ephemeral address: `usdc.transfer(ephemeralAddr, amount)`
 2. Buyer calls `deposit()` from ephemeral address (requires ETH for gas)
 
@@ -159,10 +166,10 @@ function spend(
     bytes32 newCommitment
 ) external {
     EphemeralState storage state = ephemeralStates[ephemeralAddress];
-    
+
     // Verify nonce
     require(state.localNonce == oldLocalNonce, "Stale nonce");
-    
+
     // Verify proof
     uint256[] memory publicInputs = new uint256[](8);
     publicInputs[0] = uint256(uint160(ephemeralAddress));
@@ -173,21 +180,21 @@ function spend(
     publicInputs[5] = expiry;
     publicInputs[6] = oldLocalNonce;
     publicInputs[7] = uint256(newCommitment);
-    
+
     require(verifier.verify(proof, publicInputs), "Invalid proof");
-    
+
     // Policy checks
     require(allowedSellers[seller], "Seller not authorized");
     require(token == address(usdc), "Wrong token");
     require(block.timestamp <= expiry, "Expired");
-    
+
     // Update state
     state.balanceCommitment = newCommitment;
     state.localNonce++;
-    
+
     // Transfer to seller
     usdc.transfer(seller, amount);
-    
+
     emit Spend(ephemeralAddress, seller, amount, newCommitment);
 }
 ```
@@ -273,21 +280,21 @@ assert(computedNewCommitment == newCommitment);
 
 ### Constraint Breakdown
 
-| Operation | Constraints | Notes |
-|-----------|-------------|-------|
-| Poseidon (derivation salt) | 150 | SNARK-friendly hash |
-| Poseidon (ephemeral secret) | 150 | SNARK-friendly hash |
-| secp256k1 scalar multiplication | 2,500 | Ethereum address derivation |
-| Keccak256 (address) | 500 | Ethereum compatibility |
-| Poseidon (old commitment) | 150 | Balance verification |
-| Keccak256 (intentHash) | 500 | EIP-712 compatibility |
-| Keccak256 (domain separator) | 500 | EIP-712 standard |
-| Keccak256 (struct hash) | 500 | EIP-712 standard |
-| Keccak256 (digest) | 500 | EIP-712 standard |
-| ecrecover | 2,500 | ECDSA signature verification |
-| Poseidon (new commitment) | 150 | Balance update |
-| Arithmetic | 200 | Balance checks |
-| **TOTAL** | **~8,300** | **Groth16-compatible** |
+| Operation                       | Constraints | Notes                        |
+| ------------------------------- | ----------- | ---------------------------- |
+| Poseidon (derivation salt)      | 150         | SNARK-friendly hash          |
+| Poseidon (ephemeral secret)     | 150         | SNARK-friendly hash          |
+| secp256k1 scalar multiplication | 2,500       | Ethereum address derivation  |
+| Keccak256 (address)             | 500         | Ethereum compatibility       |
+| Poseidon (old commitment)       | 150         | Balance verification         |
+| Keccak256 (intentHash)          | 500         | EIP-712 compatibility        |
+| Keccak256 (domain separator)    | 500         | EIP-712 standard             |
+| Keccak256 (struct hash)         | 500         | EIP-712 standard             |
+| Keccak256 (digest)              | 500         | EIP-712 standard             |
+| ecrecover                       | 2,500       | ECDSA signature verification |
+| Poseidon (new commitment)       | 150         | Balance update               |
+| Arithmetic                      | 200         | Balance checks               |
+| **TOTAL**                       | **~8,300**  | **Groth16-compatible**       |
 
 **Proving time**: ~15-20 seconds (depends on hardware)  
 **Proof size**: ~256 bytes (Groth16)  
@@ -300,10 +307,12 @@ assert(computedNewCommitment == newCommitment);
 ### What Makes It Expensive
 
 **Ethereum addresses** (not Poseidon hashes):
+
 - secp256k1 point multiplication: 2,500 constraints
 - Keccak256 for address: 500 constraints
 
 **EIP-712 signatures** (not Poseidon signatures):
+
 - Keccak256 for domain/struct/digest: 1,500 constraints
 - ecrecover for ECDSA: 2,500 constraints
 
@@ -334,6 +343,7 @@ let newCommitment = poseidon_hash([newBalance, ephemeralId, localNonce + 1]);
 **Gas**: Same (~250k for pairing checks)
 
 **But we lose**:
+
 - ❌ Ethereum addresses (no wallet support)
 - ❌ EIP-712 (breaks x402 standard)
 - ❌ MetaMask/hardware wallet signing
@@ -350,6 +360,7 @@ let newCommitment = poseidon_hash([newBalance, ephemeralId, localNonce + 1]);
 **Claim**: Only the buyer who deposited can spend, and only for amounts ≤ balance.
 
 **Proof**:
+
 1. Circuit proves `ephemeralAddress` derived from `masterPrivateKey` (key binding)
 2. Circuit proves `ecrecover(digest, sig) == ephemeralAddress` (authorization)
 3. Circuit proves `oldBalance >= amount` (sufficient funds)
@@ -361,6 +372,7 @@ let newCommitment = poseidon_hash([newBalance, ephemeralId, localNonce + 1]);
 **Claim**: Observer cannot link ephemeral addresses or identify buyer.
 
 **Proof**:
+
 1. Ephemeral addresses derived via one-way function: `poseidon(masterKey, index) → secret → secp256k1 → address`
 2. No on-chain link between master address and ephemeral addresses (deposit sent FROM ephemeral)
 3. Each deposit uses unique derivation index → unique ephemeral address
@@ -394,36 +406,39 @@ let newCommitment = poseidon_hash([newBalance, ephemeralId, localNonce + 1]);
 ```typescript
 class BuyerBalanceManager {
   masterPrivateKey: string;
-  ephemeralAccounts: Map<number, {
-    address: string;
-    balance: bigint;
-    derivationIndex: number;
-  }>;
-  
+  ephemeralAccounts: Map<
+    number,
+    {
+      address: string;
+      balance: bigint;
+      derivationIndex: number;
+    }
+  >;
+
   recordDeposit(index: number, amount: bigint) {
     const addr = deriveEphemeralAddress(this.masterPrivateKey, index);
     this.ephemeralAccounts.set(index, {
       address: addr,
       balance: amount,
-      derivationIndex: index
+      derivationIndex: index,
     });
   }
-  
+
   recordSpend(index: number, amount: bigint) {
     const account = this.ephemeralAccounts.get(index);
     account.balance -= amount;
   }
-  
+
   async verifyBalance(index: number, zkVault: Contract): Promise<boolean> {
     const account = this.ephemeralAccounts.get(index);
     const state = await zkVault.ephemeralStates(account.address);
-    
+
     const expectedCommitment = poseidon([
       account.balance,
       account.address,
-      state.localNonce
+      state.localNonce,
     ]);
-    
+
     return expectedCommitment === state.balanceCommitment;
   }
 }
@@ -434,7 +449,7 @@ class BuyerBalanceManager {
 ```typescript
 class FacilitatorBalanceManager {
   balances: Map<string, bigint>;  // ephemeralAddress → balance
-  
+
   async processPayment(
     ephemeralAddr: string,
     amount: bigint,
@@ -445,13 +460,13 @@ class FacilitatorBalanceManager {
     if (this.balances.get(ephemeralAddr) < amount) {
       throw new Error("Insufficient balance");
     }
-    
+
     // Generate proof
     const proof = await noirProver.prove({ ... });
-    
+
     // Update balance
     this.balances.set(ephemeralAddr, oldBalance - amount);
-    
+
     return proof;
   }
 }
@@ -477,11 +492,14 @@ class FacilitatorBalanceManager {
 // 1. Derive ephemeral address
 const derivationIndex = 0;
 const ephemeralAddr = deriveEphemeralAddress(masterPrivateKey, derivationIndex);
-const ephemeralPrivateKey = deriveEphemeralPrivateKey(masterPrivateKey, derivationIndex);
+const ephemeralPrivateKey = deriveEphemeralPrivateKey(
+  masterPrivateKey,
+  derivationIndex
+);
 
 // 2. Fund ephemeral address
-await usdc.transfer(ephemeralAddr, 100_000000);  // 100 USDC
-await sendETH(ephemeralAddr, 0.01);  // For gas
+await usdc.transfer(ephemeralAddr, 100_000000); // 100 USDC
+await sendETH(ephemeralAddr, 0.01); // For gas
 
 // 3. Compute initial commitment
 const commitment = poseidon([100_000000, ephemeralAddr, 0]);
@@ -598,6 +616,7 @@ await zkVault.spend(proof, ephemeralAddr, intentHash, bobAddress, ...);
 **Issue**: If buyer loses derivation index, must scan to find used addresses.
 
 **Solution**: Scan `Deposit` events and test derivability:
+
 ```typescript
 for (const event of depositEvents) {
   for (let i = 0; i < 1000; i++) {
@@ -614,7 +633,8 @@ for (const event of depositEvents) {
 
 **Issue**: ~15-20 seconds proving time may impact UX.
 
-**Mitigation**: 
+**Mitigation**:
+
 - Facilitator pre-computes proofs when possible
 - Show progress indicator to buyer
 - Consider recursive SNARKs for faster verification (future)
@@ -634,4 +654,3 @@ for (const event of depositEvents) {
 ---
 
 _This specification is frozen and ready for implementation. All design decisions finalized._
-
