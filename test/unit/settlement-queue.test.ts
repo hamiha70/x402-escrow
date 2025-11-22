@@ -4,24 +4,19 @@
  * Tests the in-memory queue for deferred payment settlement.
  * Critical for escrow-deferred and private-escrow-deferred schemes.
  * 
- * Note: SettlementQueue is exported as a singleton instance.
- * Tests operate on the shared instance and may have side effects.
- * For production, consider exporting the class for testability.
+ * Uses factory pattern for test isolation - each test gets a fresh queue instance.
  */
 
 import { expect } from "chai";
 import { describe, it, beforeEach } from "mocha";
-import queue from "../../facilitator/services/SettlementQueue.js";
+import { createQueue, type SettlementQueue } from "../../facilitator/services/SettlementQueue.js";
 
 describe("SettlementQueue (Facilitator)", () => {
-	// Using singleton instance - tests share state
-	// This matches production usage pattern
+	let queue: SettlementQueue;
 
 	beforeEach(() => {
-		// WARNING: Singleton pattern means tests share state
-		// cleanup() only removes old records, doesn't clear all
-		// Tests need to account for cumulative queue growth
-		// TODO: Export class for better testability, or add clear() method
+		// Create fresh queue instance for each test (test isolation)
+		queue = createQueue();
 	});
 
 	describe("add()", () => {
@@ -107,15 +102,12 @@ describe("SettlementQueue (Facilitator)", () => {
 	});
 
 	describe("getPending()", () => {
-		it("should return array of pending records (may include records from previous tests)", () => {
-			const beforeCount = queue.getPending().length;
-			expect(queue.getPending()).to.be.an("array");
-			// Note: Singleton means queue persists across tests
-			// This test just validates the method works, not that queue is empty
+		it("should return empty array for new queue", () => {
+			const pending = queue.getPending();
+			expect(pending).to.be.an("array").with.lengthOf(0);
 		});
 
 		it("should return newly added pending records", () => {
-			const beforeCount = queue.getPending().length;
 			
 			const record1 = {
 				scheme: "x402-escrow-deferred" as const,
@@ -142,16 +134,12 @@ describe("SettlementQueue (Facilitator)", () => {
 			queue.add(record2);
 
 			const pending = queue.getPending();
-			expect(pending.length).to.be.at.least(2); // At least our 2 records
-			// Check our records are in there
-			const hasFirst = pending.some(r => r.nonce === "0x1111-test2");
-			const hasSecond = pending.some(r => r.nonce === "0x2222-test2");
-			expect(hasFirst).to.be.true;
-			expect(hasSecond).to.be.true;
+			expect(pending).to.have.lengthOf(2);
+			expect(pending[0].nonce).to.equal("0x1111-test2");
+			expect(pending[1].nonce).to.equal("0x2222-test2");
 		});
 
 		it("should not return settled records", () => {
-			const beforeCount = queue.getPending().length;
 			
 			const record = {
 				scheme: "x402-escrow-deferred" as const,
@@ -168,13 +156,11 @@ describe("SettlementQueue (Facilitator)", () => {
 			};
 
 			const id = queue.add(record);
-			const afterAdd = queue.getPending().length;
-			expect(afterAdd).to.equal(beforeCount + 1); // Should increase by 1
+			expect(queue.getPending()).to.have.lengthOf(1);
 			
 			queue.markSettled(id, "0xTxHash");
 			
-			const afterSettle = queue.getPending().length;
-			expect(afterSettle).to.equal(beforeCount); // Should return to original count
+			expect(queue.getPending()).to.have.lengthOf(0);
 		});
 	});
 
@@ -289,9 +275,15 @@ describe("SettlementQueue (Facilitator)", () => {
 	});
 
 	describe("getStats()", () => {
-		it("should track queue statistics (relative changes)", () => {
-			const statsBefore = queue.getStats();
+		it("should track queue statistics", () => {
+			// Start with empty queue
+			let stats = queue.getStats();
+			expect(stats.total).to.equal(0);
+			expect(stats.pending).to.equal(0);
+			expect(stats.settled).to.equal(0);
+			expect(stats.failed).to.equal(0);
 
+			// Add 2 records
 			const record1 = {
 				scheme: "x402-escrow-deferred" as const,
 				chainId: 84532,
@@ -311,18 +303,19 @@ describe("SettlementQueue (Facilitator)", () => {
 			const id1 = queue.add(record1);
 			const id2 = queue.add(record2);
 
-			const statsAfterAdd = queue.getStats();
-			expect(statsAfterAdd.total).to.equal(statsBefore.total + 2);
-			expect(statsAfterAdd.pending).to.equal(statsBefore.pending + 2);
+			stats = queue.getStats();
+			expect(stats.total).to.equal(2);
+			expect(stats.pending).to.equal(2);
 
+			// Mark one settled, one failed
 			queue.markSettled(id1, "0xTxHash");
 			queue.markFailed(id2, "Error");
 
-			const statsFinal = queue.getStats();
-			expect(statsFinal.total).to.equal(statsBefore.total + 2); // Still 2 records
-			expect(statsFinal.pending).to.equal(statsBefore.pending); // Back to original pending count
-			expect(statsFinal.settled).to.equal(statsBefore.settled + 1);
-			expect(statsFinal.failed).to.equal(statsBefore.failed + 1);
+			stats = queue.getStats();
+			expect(stats.total).to.equal(2);
+			expect(stats.pending).to.equal(0);
+			expect(stats.settled).to.equal(1);
+			expect(stats.failed).to.equal(1);
 		});
 	});
 });

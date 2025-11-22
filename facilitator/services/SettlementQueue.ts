@@ -40,12 +40,18 @@ export interface QueueRecord {
 	// Timestamps
 	createdAt: number;
 	settledAt?: number;
+	failedAt?: number;
 }
 
 /**
  * In-memory queue storage
+ * 
+ * Note: This is exported as a class (not singleton) to support:
+ * - Test isolation (each test gets fresh instance via createQueue())
+ * - Future database migrations (implement ISettlementQueue interface)
+ * - Dependency injection (pass queue instance to services)
  */
-class SettlementQueue {
+export class SettlementQueue {
 	private queue: Map<string, QueueRecord> = new Map();
 	private recordCounter = 0;
 
@@ -111,6 +117,7 @@ class SettlementQueue {
 		if (record) {
 			record.status = "failed";
 			record.error = error;
+			record.failedAt = Date.now();
 			logger.error(`Marked as failed: ${id} (${error})`);
 		}
 	}
@@ -153,10 +160,38 @@ class SettlementQueue {
 		
 		return cleaned;
 	}
+
+	/**
+	 * Clear all records (for testing)
+	 */
+	clear(): void {
+		this.queue.clear();
+		this.recordCounter = 0;
+		logger.info("Settlement queue cleared.");
+	}
 }
 
-// Singleton queue instance
-const queue = new SettlementQueue();
+/**
+ * Factory function to create a new queue instance
+ * 
+ * Usage:
+ *   Production: const queue = createQueue();
+ *   Testing:    let queue: SettlementQueue; beforeEach(() => { queue = createQueue(); });
+ */
+export function createQueue(): SettlementQueue {
+	return new SettlementQueue();
+}
 
-export default queue;
+/**
+ * Default singleton instance for backward compatibility
+ * Use this in production code for shared global queue
+ * 
+ * Future: Replace with Redis/PostgreSQL-backed queue for:
+ * - Persistence across facilitator restarts
+ * - Distributed settlement (multiple facilitator instances)
+ * - Audit trail and observability
+ */
+const defaultQueue = createQueue();
+
+export default defaultQueue;
 

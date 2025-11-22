@@ -52,17 +52,7 @@ export async function settleBatch(
 	logger.info(`  • ${records.length} intents to settle`);
 
 	// Prepare intents and signatures
-	const intents = records.map(r => ({
-		buyer: r.intent.buyer,
-		seller: r.intent.seller,
-		amount: r.intent.amount,
-		token: r.intent.token,
-		nonce: r.intent.nonce,
-		expiry: r.intent.expiry,
-		resource: r.intent.resource,
-		chainId: r.intent.chainId,
-	}));
-
+	const intents = records.map(r => r.intent);
 	const signatures = records.map(r => r.signature);
 
 	try {
