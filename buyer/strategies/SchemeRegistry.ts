@@ -6,6 +6,7 @@
 
 import type { SchemeStrategy } from "./SchemeStrategy.js";
 import { ExactScheme } from "./ExactScheme.js";
+import { EscrowDeferredScheme } from "./EscrowDeferredScheme.js";
 
 export class SchemeRegistry {
 	private strategies = new Map<string, SchemeStrategy>();
@@ -41,6 +42,10 @@ export function createDefaultRegistry(): SchemeRegistry {
 	// Register exact scheme (current implementation)
 	registry.register("intent", new ExactScheme());
 	registry.register("x402-exact", new ExactScheme()); // Alias
+	
+	// Register escrow-deferred scheme [MOCK_CHAIN]
+	// ⚠️ Uses mock Vault until deployment
+	registry.register("x402-escrow-deferred", new EscrowDeferredScheme());
 	
 	return registry;
 }

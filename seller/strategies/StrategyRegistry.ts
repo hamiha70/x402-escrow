@@ -6,6 +6,7 @@
 
 import type { PaymentStrategy } from "./PaymentStrategy.js";
 import { ExactStrategy } from "./ExactStrategy.js";
+import { EscrowDeferredStrategy } from "./EscrowDeferredStrategy.js";
 
 export class StrategyRegistry {
 	private strategies = new Map<string, PaymentStrategy>();
@@ -59,8 +60,15 @@ export function createDefaultRegistry(
 	);
 	registry.register(exactStrategy);
 	
-	// Note: Escrow-deferred strategy will be registered when vault addresses are configured
-	// For now, only exact is available
+	// Register escrow-deferred strategy [MOCK_CHAIN]
+	// ⚠️ Uses mock Vault until deployment
+	const escrowDeferredStrategy = new EscrowDeferredStrategy(
+		facilitatorUrl,
+		paymentAmountDisplay,
+		paymentAmountRaw,
+		usdcDecimals
+	);
+	registry.register(escrowDeferredStrategy);
 	
 	return registry;
 }

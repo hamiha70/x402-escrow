@@ -99,12 +99,15 @@ function getCanonicalResource(req: express.Request): string {
 /**
  * Get payment context from request and chain config
  */
+// Mock Vault address for escrow-deferred [MOCK_CHAIN]
+const MOCK_VAULT_ADDRESS = process.env.VAULT_ADDRESS || "0x0000000000000000000000000000000000000001";
+
 function createPaymentContext(
 	chain: ChainConfig,
 	resource: string,
 	scheme: string = "x402-exact"
 ): PaymentContext {
-	return {
+	const context: PaymentContext = {
 		scheme: scheme as any,
 		chainId: chain.chainId,
 		chainSlug: chain.networkSlug,
@@ -113,6 +116,13 @@ function createPaymentContext(
 		resource,
 		mode: scheme === "x402-exact" ? "synchronous" : "deferred",
 	};
+
+	// Add vault address for escrow-deferred schemes [MOCK_CHAIN]
+	if (scheme === "x402-escrow-deferred" || scheme === "x402-private-escrow-deferred") {
+		context.vault = MOCK_VAULT_ADDRESS;
+	}
+
+	return context;
 }
 
 /**

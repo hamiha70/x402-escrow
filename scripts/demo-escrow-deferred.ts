@@ -25,7 +25,7 @@ import dotenv from "dotenv";
 import { createLogger } from "../shared/logger.js";
 import {
 	generateNonce,
-	signVaultPaymentIntent,
+	signPaymentIntentWithVaultDomain,
 } from "../shared/eip712.js";
 import type {
 	PaymentRequirements,
@@ -128,11 +128,12 @@ async function main() {
 	logger.info("Phase 3: Signing payment intent for Vault...");
 	logger.info("  (This is NOT an EIP-3009 signature - it's for Vault.batchWithdraw)");
 
-	const x402Signature = await signVaultPaymentIntent(
+	const x402Signature = await signPaymentIntentWithVaultDomain(
 		intent,
-		CHAIN_ID,
 		requirements.vault,
-		buyerWallet
+		CHAIN_ID,
+		buyerWallet,
+		provider
 	);
 
 	logger.success("✓ Signed payment intent for Vault");

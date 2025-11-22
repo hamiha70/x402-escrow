@@ -117,20 +117,29 @@ export async function validateEscrowDeferredIntent(
 
 	// Check vault deposit balance
 	logger.info("Checking vault deposit balance...");
-	try {
-		const vaultContract = new ethers.Contract(context.vault, VAULT_ABI, chainProvider);
-		const depositBalance = await vaultContract.deposits(intent.buyer);
-		
-		if (depositBalance < BigInt(intent.amount)) {
-			return {
-				valid: false,
-				error: `Insufficient vault deposit. Has: ${depositBalance}, needs: ${intent.amount}`,
-			};
-		}
+	
+	// [MOCK_CHAIN] Skip vault balance check for mock vault
+	const MOCK_VAULT_ADDRESS = "0x0000000000000000000000000000000000000001";
+	if (context.vault.toLowerCase() !== MOCK_VAULT_ADDRESS.toLowerCase()) {
+		// Real vault - check balance
+		try {
+			const vaultContract = new ethers.Contract(context.vault, VAULT_ABI, chainProvider);
+			const depositBalance = await vaultContract.deposits(intent.buyer);
+			
+			if (depositBalance < BigInt(intent.amount)) {
+				return {
+					valid: false,
+					error: `Insufficient vault deposit. Has: ${depositBalance}, needs: ${intent.amount}`,
+				};
+			}
 
-		logger.success(`✓ Sufficient deposit: ${depositBalance} >= ${intent.amount}`);
-	} catch (error: any) {
-		return { valid: false, error: `Vault query failed: ${error.message}` };
+			logger.success(`✓ Sufficient deposit: ${depositBalance} >= ${intent.amount}`);
+		} catch (error: any) {
+			return { valid: false, error: `Vault query failed: ${error.message}` };
+		}
+	} else {
+		// Mock vault - skip balance check [MOCK_CHAIN]
+		logger.warn("⚠️  Using MOCK vault - skipping deposit check");
 	}
 
 	// Mark nonce as used (off-chain tracking)
