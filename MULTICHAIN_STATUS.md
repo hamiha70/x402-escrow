@@ -9,6 +9,7 @@ Our dynamic USDC domain resolution makes the code truly chain-agnostic. No hardc
 ## Implementation
 
 ### Dynamic Domain Query
+
 ```typescript
 export async function getUSDCDomain(
   tokenAddress: string,
@@ -16,8 +17,8 @@ export async function getUSDCDomain(
   provider: ethers.Provider
 ): Promise<EIP712Domain> {
   const usdcContract = new ethers.Contract(tokenAddress, USDC_ABI, provider);
-  const name = await usdcContract.name();      // Queries contract
-  const version = await usdcContract.EIP712_VERSION();  // Queries contract
+  const name = await usdcContract.name(); // Queries contract
+  const version = await usdcContract.EIP712_VERSION(); // Queries contract
   return { name, version, chainId, verifyingContract: tokenAddress };
 }
 ```
@@ -26,24 +27,27 @@ This means **no code changes needed** to support new chains!
 
 ## Supported Networks
 
-| Network | Chain ID | Status | USDC Balance | Notes |
-|---------|----------|--------|--------------|-------|
-| **Base Sepolia** | 84532 | ✅ Tested | 9.95 USDC | Primary testnet |
-| **Arbitrum Sepolia** | 421614 | ✅ Ready | 10.00 USDC | Funded & configured |
-| **Optimism Sepolia** | 11155420 | ✅ Ready | 10.00 USDC | Funded & configured |
-| **Polygon Amoy** | 80002 | ✅ Ready | 10.00 USDC | Funded & configured |
-| **Arc Testnet** | 1243 | ✅ Ready | 10.02 USDC | Funded & configured |
-| **Ethereum Sepolia** | 11155111 | ⚠️ RPC Issues | N/A | QuickNode DNS failure |
+| Network              | Chain ID | Status        | USDC Balance | Notes                 |
+| -------------------- | -------- | ------------- | ------------ | --------------------- |
+| **Base Sepolia**     | 84532    | ✅ Tested     | 9.95 USDC    | Primary testnet       |
+| **Arbitrum Sepolia** | 421614   | ✅ Ready      | 10.00 USDC   | Funded & configured   |
+| **Optimism Sepolia** | 11155420 | ✅ Ready      | 10.00 USDC   | Funded & configured   |
+| **Polygon Amoy**     | 80002    | ✅ Ready      | 10.00 USDC   | Funded & configured   |
+| **Arc Testnet**      | 1243     | ✅ Ready      | 10.02 USDC   | Funded & configured   |
+| **Ethereum Sepolia** | 11155111 | ⚠️ RPC Issues | N/A          | QuickNode DNS failure |
 
 ## Test Results
 
 All tests successfully completed using the parameterized demo script:
+
 ```bash
 ./scripts/run_demo_exact.sh [CHAIN] [--auto-stop]
 ```
 
 ### Base Sepolia (84532)
+
 ✅ **PASSED** - Full end-to-end test
+
 - Transaction: `0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78`
 - Block: 34008035
 - Gas Used: 85740
@@ -54,7 +58,9 @@ All tests successfully completed using the parameterized demo script:
 - Explorer: https://sepolia.basescan.org/tx/0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78
 
 ### Polygon Amoy (80002)
+
 ✅ **PASSED** - Full end-to-end test
+
 - Transaction: `0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae`
 - Block: 34009003
 - Gas Used: 85716
@@ -65,7 +71,9 @@ All tests successfully completed using the parameterized demo script:
 - Explorer: https://amoy.polygonscan.com/tx/0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae
 
 ### Arc Testnet (1243)
+
 ✅ **PASSED** - Full end-to-end test
+
 - Transaction: `0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25`
 - Block: 34009020
 - Gas Used: 85720
@@ -76,10 +84,12 @@ All tests successfully completed using the parameterized demo script:
 - Explorer: https://explorer.arc-testnet.circlechain.xyz/tx/0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25
 
 ### Other Chains (Ready, Not Yet Tested)
+
 ✅ **Arbitrum Sepolia** - Funded and configured (10 USDC)
 ✅ **Optimism Sepolia** - Funded and configured (10 USDC)
 
 **To test any chain**:
+
 ```bash
 ./scripts/run_demo_exact.sh arbitrum-sepolia --auto-stop
 ./scripts/run_demo_exact.sh optimism-sepolia --auto-stop
@@ -88,16 +98,21 @@ All tests successfully completed using the parameterized demo script:
 ## Key Features
 
 ### 1. Automatic Domain Resolution
+
 No need to know each chain's USDC domain in advance. We query it at runtime.
 
 ### 2. Cross-Chain Compatibility
+
 Same code works on:
+
 - Different USDC implementations (Circle vs bridged)
-- Different domain names ("USDC" vs "USD Coin")  
+- Different domain names ("USDC" vs "USD Coin")
 - Different versions ("1" vs "2")
 
 ### 3. Zero Config for New Chains
+
 To add a new chain:
+
 1. Add RPC URL to `.env`
 2. Add USDC address to `.env`
 3. Run - it just works!
@@ -105,6 +120,7 @@ To add a new chain:
 ## Multi-Chain Demo Plan
 
 For full multi-chain validation, we can create a script that:
+
 1. Runs the demo on each chain sequentially
 2. Verifies dynamic domain resolution works
 3. Confirms cross-chain USDC signature compatibility
@@ -117,6 +133,7 @@ For full multi-chain validation, we can create a script that:
 **Standard x402 implementations are often single-chain**. By dynamically querying USDC contracts for their EIP-712 domains, we achieve true multi-chain compatibility without maintaining chain-specific configuration.
 
 This is especially important for:
+
 - Agentic payments (agents operate across chains)
 - Liquidity aggregation (route payments through cheapest chain)
 - Failover (switch chains if one is congested)

@@ -31,19 +31,53 @@ app.use(express.json());
 
 // Environment configuration
 const PORT = process.env.FACILITATOR_PORT || 4023;
-const RPC_URL = process.env.BASE_SEPOLIA_RPC;
 const FACILITATOR_PRIVATE_KEY = process.env.FACILITATOR_PRIVATE_KEY;
 const FACILITATOR_ADDRESS = process.env.FACILITATOR_WALLET_ADDRESS;
-const USDC_BASE_SEPOLIA = process.env.USDC_BASE_SEPOLIA;
-const CHAIN_ID = 84532; // Base Sepolia
 
-if (!RPC_URL || !FACILITATOR_PRIVATE_KEY || !FACILITATOR_ADDRESS || !USDC_BASE_SEPOLIA) {
-	throw new Error("Missing required environment variables");
+if (!FACILITATOR_PRIVATE_KEY || !FACILITATOR_ADDRESS) {
+	throw new Error("Missing required environment variables: FACILITATOR_PRIVATE_KEY, FACILITATOR_WALLET_ADDRESS");
 }
 
-// Setup provider and signer
-const provider = new ethers.JsonRpcProvider(RPC_URL);
-const facilitatorWallet = new ethers.Wallet(FACILITATOR_PRIVATE_KEY, provider);
+// Multi-chain configuration
+const CHAIN_CONFIG: Record<number, { rpc: string; usdc: string; name: string }> = {
+	84532: { rpc: process.env.BASE_SEPOLIA_RPC!, usdc: process.env.USDC_BASE_SEPOLIA!, name: "Base Sepolia" },
+	80002: { rpc: process.env.POLYGON_AMOY_RPC!, usdc: process.env.USDC_POLYGON_AMOY!, name: "Polygon Amoy" },
+	421614: { rpc: process.env.ARBITRUM_SEPOLIA_RPC!, usdc: process.env.USDC_ARBITRUM_SEPOLIA!, name: "Arbitrum Sepolia" },
+	11155420: { rpc: process.env.OPTIMISM_SEPOLIA_RPC!, usdc: process.env.USDC_OPTIMISM_SEPOLIA!, name: "Optimism Sepolia" },
+	1243: { rpc: process.env.ARC_TESTNET_RPC!, usdc: process.env.USDC_ARC_TESTNET!, name: "Arc Testnet" },
+	11155111: { rpc: process.env.ETHEREUM_SEPOLIA_RPC!, usdc: process.env.USDC_ETHEREUM_SEPOLIA!, name: "Ethereum Sepolia" }
+};
+
+// Provider and wallet cache (one per chain)
+const providerCache = new Map<number, ethers.JsonRpcProvider>();
+const walletCache = new Map<number, ethers.Wallet>();
+
+function getProvider(chainId: number): ethers.JsonRpcProvider {
+	if (!providerCache.has(chainId)) {
+		const config = CHAIN_CONFIG[chainId];
+		if (!config || !config.rpc) {
+			throw new Error(`Chain ${chainId} not configured or RPC URL missing`);
+		}
+		providerCache.set(chainId, new ethers.JsonRpcProvider(config.rpc));
+	}
+	return providerCache.get(chainId)!;
+}
+
+function getWallet(chainId: number): ethers.Wallet {
+	if (!walletCache.has(chainId)) {
+		const provider = getProvider(chainId);
+		walletCache.set(chainId, new ethers.Wallet(FACILITATOR_PRIVATE_KEY!, provider));
+	}
+	return walletCache.get(chainId)!;
+}
+
+function getChainConfig(chainId: number) {
+	const config = CHAIN_CONFIG[chainId];
+	if (!config) {
+		throw new Error(`Chain ${chainId} not supported`);
+	}
+	return config;
+}
 
 // USDC EIP-3009 ABI
 const USDC_ABI = [
@@ -70,14 +104,12 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 		return { valid: false, error: "Payment intent expired" };
 	}
 
-	// Check chain ID
-	if (intent.chainId !== CHAIN_ID) {
-		return { valid: false, error: `Invalid chain ID. Expected ${CHAIN_ID}` };
-	}
-
-	// Check token address
-	if (intent.token.toLowerCase() !== USDC_BASE_SEPOLIA!.toLowerCase()) {
-		return { valid: false, error: "Invalid token address" };
+	// Get chain configuration
+	const chainConfig = getChainConfig(intent.chainId);
+	
+	// Check token address matches chain's USDC
+	if (intent.token.toLowerCase() !== chainConfig.usdc.toLowerCase()) {
+		return { valid: false, error: `Invalid token address for chain ${intent.chainId}. Expected ${chainConfig.usdc}` };
 	}
 
 	// Check nonce uniqueness
@@ -87,13 +119,13 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 	}
 
 	// STEP 1: Verify x402 signature (HTTP layer, resource binding)
-	logger.info("Verifying x402 signature with resource binding...");
+	logger.info(`Verifying x402 signature for chain ${intent.chainId} (${chainConfig.name})...`);
 	let x402RecoveredAddress: string;
 	try {
 		x402RecoveredAddress = verifyX402PaymentIntent(
 			intent,
 			x402Signature,
-			CHAIN_ID,
+			intent.chainId,
 		);
 	} catch (error) {
 		return { valid: false, error: "Invalid x402 signature" };
@@ -111,15 +143,16 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 
 	// STEP 2: Verify EIP-3009 signature (settlement layer)
 	logger.info("Verifying EIP-3009 signature for settlement...");
+	const chainProvider = getProvider(intent.chainId);
 	let eip3009RecoveredAddress: string;
 	try {
 		// Query USDC contract for correct EIP-712 domain (cross-chain compatible)
 		eip3009RecoveredAddress = await verifyTransferAuthorizationWithProvider(
 			transferAuth,
 			eip3009Signature,
-			USDC_BASE_SEPOLIA!,
-			CHAIN_ID,
-			provider,
+			chainConfig.usdc,
+			intent.chainId,
+			chainProvider,
 		);
 	} catch (error) {
 		return { valid: false, error: "Invalid EIP-3009 signature" };
@@ -150,7 +183,9 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
  */
 async function settlePayment(payload: PaymentPayload): Promise<SettlementResult> {
 	const { intent, transferAuth, eip3009Signature } = payload.data;
-	const usdcContract = new ethers.Contract(USDC_BASE_SEPOLIA!, USDC_ABI, facilitatorWallet);
+	const chainConfig = getChainConfig(intent.chainId);
+	const chainWallet = getWallet(intent.chainId);
+	const usdcContract = new ethers.Contract(chainConfig.usdc, USDC_ABI, chainWallet);
 
 	try {
 		// Check buyer's balance
@@ -303,9 +338,13 @@ app.get("/health", (req, res) => {
  */
 app.listen(PORT, () => {
 	logger.success(`Facilitator running on port ${PORT}`);
-	logger.info(`Chain ID: ${CHAIN_ID} (Base Sepolia)`);
+	logger.info(`Multi-chain facilitator - Supports:`);
+	Object.entries(CHAIN_CONFIG).forEach(([chainId, config]) => {
+		if (config.rpc && config.usdc) {
+			logger.info(`  • ${config.name} (${chainId}): ${config.usdc}`);
+		}
+	});
 	logger.info(`Facilitator address: ${FACILITATOR_ADDRESS}`);
-	logger.info(`USDC address: ${USDC_BASE_SEPOLIA}`);
 	logger.info(`Settlement mode: SYNCHRONOUS (EIP-3009 transferWithAuthorization)`);
 	logger.info(`✅ NO APPROVAL NEEDED - gasless for buyers!`);
 });

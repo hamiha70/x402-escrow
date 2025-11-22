@@ -178,34 +178,104 @@ class DemoLogger {
 	}
 }
 
+// Chain configuration
+const CHAIN_CONFIGS: Record<string, { 
+	chainId: number; 
+	rpcVar: string; 
+	usdcVar: string;
+	explorerVar: string;
+	networkSlug: string;
+}> = {
+	"base-sepolia": { 
+		chainId: 84532, 
+		rpcVar: "BASE_SEPOLIA_RPC", 
+		usdcVar: "USDC_BASE_SEPOLIA",
+		explorerVar: "BASE_SEPOLIA_EXPLORER",
+		networkSlug: "base-sepolia"
+	},
+	"polygon-amoy": { 
+		chainId: 80002, 
+		rpcVar: "POLYGON_AMOY_RPC", 
+		usdcVar: "USDC_POLYGON_AMOY",
+		explorerVar: "POLYGON_AMOY_EXPLORER",
+		networkSlug: "polygon-amoy"
+	},
+	"arbitrum-sepolia": { 
+		chainId: 421614, 
+		rpcVar: "ARBITRUM_SEPOLIA_RPC", 
+		usdcVar: "USDC_ARBITRUM_SEPOLIA",
+		explorerVar: "ARBITRUM_SEPOLIA_EXPLORER",
+		networkSlug: "arbitrum-sepolia"
+	},
+	"optimism-sepolia": { 
+		chainId: 11155420, 
+		rpcVar: "OPTIMISM_SEPOLIA_RPC", 
+		usdcVar: "USDC_OPTIMISM_SEPOLIA",
+		explorerVar: "OPTIMISM_SEPOLIA_EXPLORER",
+		networkSlug: "optimism-sepolia"
+	},
+	"arc": { 
+		chainId: 1243, 
+		rpcVar: "ARC_TESTNET_RPC", 
+		usdcVar: "USDC_ARC_TESTNET",
+		explorerVar: "ARC_TESTNET_EXPLORER",
+		networkSlug: "arc"
+	},
+	"ethereum-sepolia": { 
+		chainId: 11155111, 
+		rpcVar: "ETHEREUM_SEPOLIA_RPC", 
+		usdcVar: "USDC_ETHEREUM_SEPOLIA",
+		explorerVar: "ETHEREUM_SEPOLIA_EXPLORER",
+		networkSlug: "ethereum-sepolia"
+	},
+};
+
 async function runDemo(): Promise<DemoResult> {
 	const logger = new DemoLogger();
 	logger.startDemo();
 
-	// Configuration
-	const SELLER_URL = process.env.SELLER_URL || "http://localhost:4022";
-	const RESOURCE = "/api/content/premium";
-	const BUYER_PK = process.env.BUYER_PRIVATE_KEY;
-	const RPC_URL = process.env.BASE_SEPOLIA_RPC;
+	// Configuration - support CHAIN env variable, default to base-sepolia
+	const chainKey = (process.env.CHAIN || "base-sepolia").toLowerCase();
+	const chainConfig = CHAIN_CONFIGS[chainKey];
+	
+	if (!chainConfig) {
+		throw new Error(`Unknown chain: ${chainKey}. Supported: ${Object.keys(CHAIN_CONFIGS).join(", ")}`);
+	}
 
-	if (!BUYER_PK || !RPC_URL) {
+	const SELLER_URL = process.env.SELLER_URL || "http://localhost:4022";
+	const RESOURCE = `/api/content/premium/${chainConfig.networkSlug}`;
+	const BUYER_PK = process.env.BUYER_PRIVATE_KEY;
+	const RPC_URL = process.env[chainConfig.rpcVar];
+	const USDC_ADDRESS = process.env[chainConfig.usdcVar];
+	const EXPLORER_BASE_URL = process.env[chainConfig.explorerVar];
+
+	if (!BUYER_PK || !RPC_URL || !USDC_ADDRESS) {
 		console.error("");
 		console.error("❌ Missing required environment variables:");
 		if (!BUYER_PK) console.error("  • BUYER_PRIVATE_KEY");
-		if (!RPC_URL) console.error("  • BASE_SEPOLIA_RPC");
+		if (!RPC_URL) console.error(`  • ${chainConfig.rpcVar}`);
+		if (!USDC_ADDRESS) console.error(`  • ${chainConfig.usdcVar}`);
 		console.error("");
+		console.error(`Chain: ${chainKey} (${chainConfig.chainId})`);
 		console.error("Please ensure .env file exists and contains these variables.");
 		console.error("See example.env for reference.");
 		console.error("");
 		throw new Error("Missing required environment variables");
 	}
+	
+	// Explorer URL is optional (for display only), use fallback if not set
+	const explorerUrl = EXPLORER_BASE_URL || `https://explorer.example.com/tx`;
 
 	const provider = new ethers.JsonRpcProvider(RPC_URL);
 	const buyerWallet = new ethers.Wallet(BUYER_PK, provider);
 
+	logger.log("info", `Chain: ${chainKey} (${chainConfig.chainId})`);
+	logger.log("info", `RPC: ${RPC_URL}`);
+	logger.log("info", `USDC: ${USDC_ADDRESS}`);
+
 	const result: DemoResult = {
 		timestamp: new Date().toISOString(),
-		network: "base-sepolia",
+		network: chainKey,
 		totalDuration: 0,
 		phases: [],
 		success: false,
@@ -214,9 +284,8 @@ async function runDemo(): Promise<DemoResult> {
 	try {
 		// Get initial balances
 		logger.log("info", "Reading initial balances...");
-		const usdcAddress = process.env.USDC_BASE_SEPOLIA!;
 		const usdcContract = new ethers.Contract(
-			usdcAddress,
+			USDC_ADDRESS,
 			["function balanceOf(address) view returns (uint256)"],
 			provider
 		);
@@ -442,7 +511,7 @@ async function runDemo(): Promise<DemoResult> {
 
 		result.transaction = {
 			hash: payment.txHash,
-			explorerUrl: `https://sepolia.basescan.org/tx/${payment.txHash}`,
+			explorerUrl: `${explorerUrl}/${payment.txHash}`,
 		};
 
 		logger.endPhase("Phase 4", phaseStart);

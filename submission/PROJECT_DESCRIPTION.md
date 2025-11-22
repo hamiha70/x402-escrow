@@ -62,7 +62,7 @@ Later: Batch Settle [Payment1, Payment2, ..., Payment100] → Single TX
 
 - **Buyer**: Consumes paid content/APIs
 - **Seller**: Provides services, requires instant payment guarantee
-- **Facilitator**: Manages escrow contracts, batch settlement, privacy proofs
+- **Facilitator**: Multi-chain capable - manages payment verification, settlement, and (in future) escrow contracts, batch settlement, privacy proofs
 
 **Security Model:**
 
@@ -100,6 +100,6 @@ The rise of AI agents creates massive demand for **programmatic micropayments**:
 2. **Agent-Native**: Designed for programmatic, high-frequency payments
 3. **Privacy Option**: Buyers can hide their purchasing behavior
 4. **Standards-Based**: Extends x402, compatible with existing implementations
-5. **Multi-Chain**: Works across any EVM chain with USDC
+5. **Multi-Chain**: Single facilitator handles Base, Polygon, Arbitrum, Optimism, Arc, and any EVM chain
 
 This is the payment infrastructure the agentic web needs - fast, cheap, private, and trustless.
