@@ -186,9 +186,17 @@ async function runDemo(): Promise<DemoResult> {
 	const SELLER_URL = process.env.SELLER_URL || "http://localhost:4022";
 	const RESOURCE = "/api/content/premium";
 	const BUYER_PK = process.env.BUYER_PRIVATE_KEY;
-	const RPC_URL = process.env.RPC_BASE_SEPOLIA;
+	const RPC_URL = process.env.BASE_SEPOLIA_RPC;
 
 	if (!BUYER_PK || !RPC_URL) {
+		console.error("");
+		console.error("❌ Missing required environment variables:");
+		if (!BUYER_PK) console.error("  • BUYER_PRIVATE_KEY");
+		if (!RPC_URL) console.error("  • BASE_SEPOLIA_RPC");
+		console.error("");
+		console.error("Please ensure .env file exists and contains these variables.");
+		console.error("See example.env for reference.");
+		console.error("");
 		throw new Error("Missing required environment variables");
 	}
 
@@ -244,7 +252,10 @@ async function runDemo(): Promise<DemoResult> {
 		}
 
 		logger.logDetail("Received", "HTTP 402 Payment Required");
-		const paymentRequirements = response.data;
+		const paymentRequirements = response.data.PaymentRequirements?.[0];
+		if (!paymentRequirements) {
+			throw new Error("Invalid 402 response: missing PaymentRequirements");
+		}
 		logger.logDetail("Amount required", `${paymentRequirements.amount} ${paymentRequirements.token}`);
 		logger.logDetail("Seller", paymentRequirements.seller);
 		logger.logDetail("Facilitator", paymentRequirements.facilitator);
