@@ -1,0 +1,63 @@
+# Environment variables (contains private keys)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+operator-bot/logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary
+temp/
+*.tmp
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+# Note: .terraform.lock.hcl should be committed (not ignored)
+
+# Aztec/Noir build artifacts
+target/
+**/target/
+*.json.bak
+*.acir
+*.acir.gz
+
+# Aztec/Noir cache
+.nargo/
+**/.nargo/
+
+# Aztec OTC Desk specific
+aztec-otc-desk/packages/api/data/
+aztec-otc-desk/packages/cli/data/
+**/data/*.db
+**/data/*.db-journal
+
+# Bun
+bun.lockb
+
