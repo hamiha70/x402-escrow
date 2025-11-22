@@ -26,11 +26,13 @@ This implementation achieves **full x402 standard compliance** through:
 ### 1. HTTP Headers ✅
 
 **Request Header:**
+
 ```http
 x-payment: {"scheme":"intent","data":{...}}
 ```
 
 **Response Header:**
+
 ```http
 x-payment-response: {"status":"settled","txHash":"0x..."}
 ```
@@ -41,13 +43,13 @@ x-payment-response: {"status":"settled","txHash":"0x..."}
 
 ### 2. HTTP Status Codes ✅
 
-| Code | Usage | Implementation |
-|------|-------|----------------|
-| `402` | Payment required | Initial request without payment |
-| `400` | Invalid payment | Signature verification failed, invalid fields |
-| `500` | Settlement failed | Payment processing error |
-| `503` | Service unavailable | Facilitator unreachable |
-| `200` | Success | Payment settled, content delivered |
+| Code  | Usage               | Implementation                                |
+| ----- | ------------------- | --------------------------------------------- |
+| `402` | Payment required    | Initial request without payment               |
+| `400` | Invalid payment     | Signature verification failed, invalid fields |
+| `500` | Settlement failed   | Payment processing error                      |
+| `503` | Service unavailable | Facilitator unreachable                       |
+| `200` | Success             | Payment settled, content delivered            |
 
 **Status:** ✅ Compliant with x402 error semantics
 
@@ -77,6 +79,7 @@ x-payment-response: {"status":"settled","txHash":"0x..."}
 ```
 
 **Features:**
+
 - ✅ All required fields present
 - ✅ Optional fields provide useful context
 - ✅ Array format allows multiple payment options
@@ -117,6 +120,7 @@ x-payment-response: {"status":"settled","txHash":"0x..."}
 ```
 
 **Features:**
+
 - ✅ Clean structure (no metadata wrapper)
 - ✅ Two signatures for complete verification
 - ✅ Nonce binding between signatures
@@ -135,6 +139,7 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 **Purpose:** HTTP-layer payment authorization WITH resource binding
 
 **EIP-712 Domain:**
+
 ```typescript
 {
   name: "x402-Payment-Intent",
@@ -145,6 +150,7 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 ```
 
 **Signed Message (PaymentIntent):**
+
 ```typescript
 {
   seller: "0x...",
@@ -159,6 +165,7 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 ```
 
 **Verifiers:**
+
 - ✅ Buyer (self-verification)
 - ✅ Facilitator (HTTP layer verification)
 
@@ -167,6 +174,7 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 **Purpose:** Blockchain settlement authorization (gasless transfer)
 
 **EIP-712 Domain:**
+
 ```typescript
 {
   name: "USDC",  // Queried from contract
@@ -177,6 +185,7 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 ```
 
 **Signed Message (TransferWithAuthorization):**
+
 ```typescript
 {
   from: "0x...",
@@ -189,19 +198,20 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 ```
 
 **Verifiers:**
+
 - ✅ Buyer (self-verification)
 - ✅ Facilitator (off-chain verification)
 - ✅ USDC Contract (on-chain verification)
 
 #### Cryptographic Bindings
 
-| Binding | Implementation | Verification |
-|---------|----------------|--------------|
-| **Nonce** | Same nonce in both signatures | Links HTTP auth to settlement |
-| **Resource** | In x402 signature | Prevents signature reuse across endpoints |
-| **Seller** | In both signatures | Ensures correct recipient |
-| **Amount** | In both signatures | Prevents manipulation |
-| **Buyer** | Both signed by buyer | Proves buyer authorization |
+| Binding      | Implementation                | Verification                              |
+| ------------ | ----------------------------- | ----------------------------------------- |
+| **Nonce**    | Same nonce in both signatures | Links HTTP auth to settlement             |
+| **Resource** | In x402 signature             | Prevents signature reuse across endpoints |
+| **Seller**   | In both signatures            | Ensures correct recipient                 |
+| **Amount**   | In both signatures            | Prevents manipulation                     |
+| **Buyer**    | Both signed by buyer          | Proves buyer authorization                |
 
 **Status:** ✅ Full x402 compliance with complete cryptographic resource binding
 
@@ -213,15 +223,13 @@ Our implementation uses **TWO** signatures for complete cryptographic guarantees
 export function generateNonce(): string {
   const timestamp = Date.now();
   const random = ethers.randomBytes(24);
-  const combined = ethers.concat([
-    ethers.toBeHex(timestamp, 8), 
-    random
-  ]);
+  const combined = ethers.concat([ethers.toBeHex(timestamp, 8), random]);
   return ethers.keccak256(combined);
 }
 ```
 
 **Features:**
+
 - ✅ 32 bytes (256 bits)
 - ✅ Cryptographically secure
 - ✅ Includes timestamp for debugging
@@ -234,6 +242,7 @@ export function generateNonce(): string {
 ### 7. Nonce Tracking (Replay Protection) ✅
 
 **Off-chain (Facilitator):**
+
 ```typescript
 const usedNonces = new Set<string>();
 // Check before processing
@@ -243,9 +252,10 @@ if (usedNonces.has(nonceKey)) {
 ```
 
 **On-chain (USDC Contract):**
+
 ```typescript
 const isUsed = await usdcContract.authorizationState(
-  intent.buyer, 
+  intent.buyer,
   intent.nonce
 );
 if (isUsed) {
@@ -254,6 +264,7 @@ if (isUsed) {
 ```
 
 **Features:**
+
 - ✅ Dual-layer protection
 - ✅ Prevents replay attacks at HTTP and blockchain layers
 - ✅ Exceeds standard requirements
@@ -275,6 +286,7 @@ if (intent.expiry < Math.floor(Date.now() / 1000)) {
 ```
 
 **Features:**
+
 - ✅ 3-minute validity window (within recommended 3-5 minutes)
 - ✅ Unix timestamp format
 - ✅ Validated before settlement
@@ -286,6 +298,7 @@ if (intent.expiry < Math.floor(Date.now() / 1000)) {
 ### 9. Multi-Chain Support ✅
 
 **Dynamic USDC Domain Resolution:**
+
 ```typescript
 export async function getUSDCDomain(
   tokenAddress: string,
@@ -293,20 +306,21 @@ export async function getUSDCDomain(
   provider: ethers.Provider
 ): Promise<EIP712Domain> {
   const usdcContract = new ethers.Contract(tokenAddress, USDC_ABI, provider);
-  
+
   const name = await usdcContract.name();
   const version = await usdcContract.EIP712_VERSION();
-  
+
   return {
     name,
     version,
     chainId,
-    verifyingContract: tokenAddress
+    verifyingContract: tokenAddress,
   };
 }
 ```
 
 **Supported Networks:**
+
 - ✅ Base Sepolia
 - ✅ Ethereum Sepolia
 - ✅ Arbitrum Sepolia
@@ -315,6 +329,7 @@ export async function getUSDCDomain(
 - ✅ Arc Testnet
 
 **Features:**
+
 - ✅ Queries USDC contract for correct domain
 - ✅ Caches results to minimize RPC calls
 - ✅ Works across different USDC implementations
@@ -339,6 +354,7 @@ export async function getUSDCDomain(
 ```
 
 **Characteristics:**
+
 - ✅ Payment settled BEFORE content delivery
 - ✅ Strong guarantee for sellers
 - ✅ ~7-9 seconds latency
@@ -351,12 +367,14 @@ export async function getUSDCDomain(
 ## Verification Flow
 
 ### Phase 1: Request Without Payment
+
 ```
 GET /api/content/premium
 → 402 Payment Required + PaymentRequirements
 ```
 
 ### Phase 2: Dual Signing (Buyer)
+
 ```
 1. Create PaymentIntent with resource
 2. Sign x402 signature (HTTP auth)
@@ -368,12 +386,14 @@ GET /api/content/premium
 ```
 
 ### Phase 3: Payment Submission
+
 ```
 GET /api/content/premium
 Headers: x-payment: {...}
 ```
 
 ### Phase 4: Dual Verification (Facilitator)
+
 ```
 1. Validate x402 signature
    ✓ Resource binding
@@ -387,6 +407,7 @@ Headers: x-payment: {...}
 ```
 
 ### Phase 5: Content Delivery (Seller)
+
 ```
 1. Check settlement status
 2. Deliver content (200 OK)
@@ -399,15 +420,15 @@ Headers: x-payment: {...}
 
 ## Security Features
 
-| Feature | Implementation | Benefit |
-|---------|----------------|---------|
-| **Resource Binding** | x402 signature includes resource | Prevents signature reuse across endpoints |
-| **Nonce Binding** | Same nonce in both signatures | Links HTTP auth to settlement |
-| **Dual Nonce Tracking** | Off-chain + on-chain | Prevents replay at multiple layers |
-| **Expiry** | 3-minute validity window | Limits attack window |
-| **EIP-712 Typing** | Structured data signing | Prevents signature malleability |
-| **Multi-signature** | HTTP + settlement layers | Complete cryptographic guarantees |
-| **Dynamic Domains** | Query contract for domain | Works across chain/token variations |
+| Feature                 | Implementation                   | Benefit                                   |
+| ----------------------- | -------------------------------- | ----------------------------------------- |
+| **Resource Binding**    | x402 signature includes resource | Prevents signature reuse across endpoints |
+| **Nonce Binding**       | Same nonce in both signatures    | Links HTTP auth to settlement             |
+| **Dual Nonce Tracking** | Off-chain + on-chain             | Prevents replay at multiple layers        |
+| **Expiry**              | 3-minute validity window         | Limits attack window                      |
+| **EIP-712 Typing**      | Structured data signing          | Prevents signature malleability           |
+| **Multi-signature**     | HTTP + settlement layers         | Complete cryptographic guarantees         |
+| **Dynamic Domains**     | Query contract for domain        | Works across chain/token variations       |
 
 **Status:** ✅ Exceeds standard requirements
 
@@ -416,6 +437,7 @@ Headers: x-payment: {...}
 ## Testing & Verification
 
 **Demo Script Features:**
+
 - ✅ Self-verification of both signatures
 - ✅ Nonce binding verification
 - ✅ Resource binding verification
@@ -425,6 +447,7 @@ Headers: x-payment: {...}
 - ✅ Complete audit trail logging
 
 **Run Demo:**
+
 ```bash
 npm run demo:exact:full
 ```
@@ -450,12 +473,14 @@ All documentation updated to reflect full compliance:
 ## Compliance Checklist
 
 ### HTTP Protocol ✅
+
 - [x] Lowercase headers (`x-payment`, `x-payment-response`)
 - [x] Correct status codes (402, 400, 500, 503, 200)
 - [x] JSON payload structure
 - [x] PaymentRequirements format
 
 ### Cryptography ✅
+
 - [x] EIP-712 typed data signing
 - [x] x402 signature (HTTP layer)
 - [x] EIP-3009 signature (settlement layer)
@@ -463,6 +488,7 @@ All documentation updated to reflect full compliance:
 - [x] Nonce binding between signatures
 
 ### Security ✅
+
 - [x] Cryptographically secure nonces
 - [x] Dual nonce tracking (off-chain + on-chain)
 - [x] Expiry validation
@@ -470,12 +496,14 @@ All documentation updated to reflect full compliance:
 - [x] Signature verification at multiple layers
 
 ### Multi-chain ✅
+
 - [x] Dynamic domain resolution
 - [x] Works across EVM chains
 - [x] USDC contract compatibility
 - [x] Chain ID validation
 
 ### Implementation ✅
+
 - [x] Clean code structure
 - [x] Comprehensive error handling
 - [x] Detailed logging

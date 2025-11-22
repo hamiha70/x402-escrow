@@ -1,232 +1,528 @@
-# x402-escrow
+# x402 Payment Protocol - Reference Implementation
 
-Reference implementation for **HTTP 402 Payment Required** with synchronous on-chain settlement.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![x402 Compliant](https://img.shields.io/badge/x402-compliant-green.svg)](https://agentic-docs.polygon.technology/general/x402/intro/)
 
-Built for **ETHGlobal Brussels 2025** • Implements [Polygon's x402 specification](https://agentic-docs.polygon.technology/general/x402/)
+A **fully compliant** reference implementation of the x402 Payment Protocol with **synchronous on-chain settlement** using EIP-3009 `transferWithAuthorization`.
 
-## 🌟 Features
+## 🎯 What is x402?
 
-- ✅ **Synchronous Settlement**: Payment settles on-chain BEFORE content delivery
-- ✅ **Polygon x402 Compliant**: Matches official HTTP 402 specification with EIP-3009
-- ✅ **EIP-3009 Gasless Transfers**: NO APPROVAL NEEDED - signature is authorization
-- ✅ **Multi-Chain**: Works on Base, Ethereum, Arbitrum, Optimism, Polygon, Arc
-- ✅ **Replay Protection**: Nonce tracking prevents double-spend attacks
-- ✅ **No Custom Contracts**: Uses USDC's built-in EIP-3009 `transferWithAuthorization`
+x402 extends HTTP 402 Payment Required with cryptographic payment intents, enabling **micropayments for digital content and API access**. This implementation achieves full x402 compliance through a **two-signature pattern**:
+
+1. **x402 Signature** - HTTP authorization with cryptographic resource binding
+2. **EIP-3009 Signature** - Blockchain settlement without gas fees for payer
+
+## ✨ Key Features
+
+- ✅ **Two-Signature Pattern** - Complete cryptographic guarantees
+- ✅ **Resource Binding** - Prevents signature reuse across endpoints
+- ✅ **Nonce Binding** - Links HTTP authorization to blockchain settlement
+- ✅ **Multi-Chain Support** - Works across EVM networks (Base, Ethereum, Arbitrum, Optimism, Polygon)
+- ✅ **EIP-3009 Settlement** - Gasless USDC transfers (buyer pays no gas)
+- ✅ **Synchronous Flow** - Payment settled before content delivery
+- ✅ **Dynamic Domain Resolution** - Queries USDC contracts for correct EIP-712 domains
 
 ## 🏗️ Architecture
 
 ```
-┌─────────┐         ┌─────────┐         ┌──────────────┐
-│  Buyer  │────1───>│ Seller  │         │ Facilitator  │
-│         │<───2────│ (402)   │         │              │
-│         │────3───>│         │────4───>│              │
-│ Sign    │         │ Forward │ Settle  │ transferFrom │
-│ Intent  │         │ Payment │ On-Chain│ (USDC)       │
-│         │<───7────│         │<───6────│              │
-│ Content │  200 OK │ Deliver │ Success │              │
-└─────────┘         └─────────┘         └──────────────┘
-                                               │
-                                               v
-                                        ┌──────────────┐
-                                        │ Base Sepolia │
-                                        │ (Blockchain) │
-                                        └──────────────┘
+┌──────────┐         ┌──────────┐         ┌──────────────┐
+│  Buyer   │◄───────►│  Seller  │◄───────►│ Facilitator  │
+│ (Client) │         │ (Server) │         │   (Server)   │
+└──────────┘         └──────────┘         └──────────────┘
+     │                     │                       │
+     │  x402 Signature     │                       │
+     │  EIP-3009 Signature │                       │
+     └─────────────────────┴───────────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │ USDC Token  │
+                    │ (EIP-3009)  │
+                    └─────────────┘
 ```
 
-### Payment Flow
+### Components
 
-1. **Buyer** requests protected content
-2. **Seller** responds `402 Payment Required` + payment requirements
-3. **Buyer** signs EIP-3009 TransferWithAuthorization (EIP-712) and retries with `X-PAYMENT` header
-4. **Seller** forwards payment to **Facilitator**
-5. **Facilitator** validates signature and executes `transferWithAuthorization` (USDC: buyer → seller)
-6. **Facilitator** waits for blockchain confirmation (gasless for buyer, NO APPROVAL NEEDED)
-7. **Seller** delivers content only after confirmed settlement
+- **Buyer** - Client that requests content and creates payment intents
+- **Seller** - Content provider that requires payment
+- **Facilitator** - Validates signatures and executes on-chain settlement
+- **USDC** - ERC-20 stablecoin with EIP-3009 support
 
 ## 🚀 Quick Start
 
-See [QUICK_START.md](./QUICK_START.md) for detailed setup instructions.
-
-### 1. Install Dependencies
+### Prerequisites
 
 ```bash
+# Install Foundry (for blockchain tools)
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Install Node.js dependencies
 npm install
 ```
 
-### 2. Setup Environment
+### Configuration
+
+1. **Copy environment template:**
+
+   ```bash
+   cp example.env .env
+   ```
+
+2. **Configure wallets and RPCs:**
+
+   ```bash
+   # Edit .env with your:
+   # - Wallet addresses and private keys (seller, buyer, facilitator)
+   # - RPC endpoints for target networks
+   # - USDC contract addresses
+   ```
+
+3. **Fund wallets:**
+   ```bash
+   npm run fund    # Fund all wallets with native tokens and USDC
+   npm run balances # Check balances
+   ```
+
+### Running the Demo
+
+**Option 1: Full Automated Demo**
 
 ```bash
-cp example.env .env
-# Edit .env with your wallet addresses and private keys
+npm run demo:exact:full
 ```
 
-### 3. Fund Wallets (Multi-Chain)
+This will:
+
+1. Start facilitator and seller servers
+2. Execute complete payment flow
+3. Show detailed verification of both signatures
+4. Display on-chain settlement results
+5. Stop servers
+
+**Option 2: Manual Testing**
 
 ```bash
-# Check balances across all networks
-npm run balances
+# Terminal 1: Start servers
+npm run start
 
-# Fund buyer, seller, facilitator on all networks
-npm run fund
+# Terminal 2: Run demo
+npm run demo:exact
+
+# When done
+npm run stop
 ```
 
-### 4. Run Demo
-
-**No approval needed!** EIP-3009 eliminates the approval step.
-
-**Terminal 1 - Facilitator:**
-
-```bash
-npm run facilitator
-```
-
-**Terminal 2 - Seller:**
-
-```bash
-npm run seller
-```
-
-**Terminal 3 - Buyer:**
-
-```bash
-npm run buyer
-```
-
-## 🌐 Supported Networks
-
-| Network          | Chain ID | USDC Address                                 | Status    |
-| ---------------- | -------- | -------------------------------------------- | --------- |
-| Base Sepolia     | 84532    | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | ✅ Tested |
-| Ethereum Sepolia | 11155111 | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` | ✅ Ready  |
-| Arbitrum Sepolia | 421614   | `0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d` | ✅ Ready  |
-| Optimism Sepolia | 11155420 | `0x5fd84259d66cd46123540766be93dfe6d43130d7` | ✅ Ready  |
-| Polygon Amoy     | 80002    | `0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582` | ✅ Ready  |
-| Arc Testnet      | TBD      | `0x3600000000000000000000000000000000000000` | ✅ Ready  |
-
-## 📋 Project Structure
+### Expected Output
 
 ```
-x402-escrow/
-├── shared/              # Shared TypeScript types and utilities
-│   ├── types.ts         # PaymentIntent, PaymentPayload, etc.
-│   ├── eip712.ts        # EIP-712 signing and verification
-│   └── logger.ts        # Colored logging utility
-├── facilitator/         # Payment validation and settlement
-│   └── server.ts        # POST /settle endpoint
-├── seller/              # Content server with 402 protection
-│   └── server.ts        # GET /api/content/premium
-├── buyer/               # Automated buyer agent
-│   └── agent.ts         # Request → Sign → Pay → Receive
-├── scripts/             # Utility scripts
-│   ├── check_balances.sh     # Multi-chain balance checker
-│   ├── fund_wallets.sh       # Multi-chain wallet funding
-│   └── approve_facilitator.ts # USDC approval script
-├── foundry.toml         # Foundry configuration
-├── package.json         # Node.js dependencies and scripts
-└── QUICK_START.md       # Detailed setup guide
+✓ TWO-SIGNATURE PATTERN VERIFIED
+
+x402 Signature (HTTP Layer):
+  • Resource binding: /api/content/premium
+  • Nonce: 0x7a2b4e25c98bf7...
+  • Domain: x402-Payment-Intent v2
+  • Verified by: Buyer (self), Facilitator
+
+EIP-3009 Signature (Settlement Layer):
+  • Transfer: 0x0AE6EF... → 0x301541...
+  • Amount: 10000 (raw units = 0.01 USDC)
+  • Nonce: 0x7a2b4e25c98bf7... (SAME as x402)
+  • Verified by: Buyer (self), Facilitator, USDC contract
+
+Cryptographic Bindings:
+  ✓ Nonce links both signatures
+  ✓ Resource binding prevents signature reuse
+  ✓ Seller binding ensures correct recipient
+  ✓ Amount binding prevents manipulation
+
+Settlement Result:
+  • Transaction: 0x64746c6f...09c92
+  • Block: 34007104
+  • Gas used: 85720
+  • Buyer balance: 9.97 → 9.96 USDC
+  • Seller balance: 0.03 → 0.04 USDC
 ```
 
-## 🔑 Key Components
+## 📋 Protocol Flow
 
-### Facilitator (Port 4023)
+### Phase 1: Initial Request (No Payment)
 
-- **POST /settle**: Validates EIP-3009 signature and executes `transferWithAuthorization`
-- Checks signature, nonce, expiry, token, chain ID
-- Executes synchronous on-chain settlement (NO APPROVAL NEEDED)
-- Returns `PaymentResponse` with transaction hash
-- Gasless for buyers - facilitator pays gas
+```http
+GET /api/content/premium HTTP/1.1
+Host: localhost:4022
+```
 
-### Seller (Port 4022)
+**Response:**
 
-- **GET /api/content/premium**: Protected endpoint
-- Returns `402` with `PaymentRequirements` on first request
-- Forwards payment to facilitator for settlement
-- Delivers content only after confirmed settlement
-- Includes `X-PAYMENT-RESPONSE` header with txHash
+```http
+HTTP/1.1 402 Payment Required
+Content-Type: application/json
 
-### Buyer Agent
+{
+  "error": "Payment required",
+  "PaymentRequirements": [{
+    "network": "base-sepolia",
+    "token": "USDC",
+    "tokenAddress": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "amount": "0.01",
+    "decimals": 6,
+    "seller": "0x301541177dE41fBEF4924a911F1959185647b7A5",
+    "resource": "/api/content/premium",
+    "facilitator": "http://localhost:4023/settle",
+    "chainId": 84532,
+    "schemes": ["intent"],
+    "expiresAt": 1732233600
+  }]
+}
+```
 
-- Automated payment flow
-- Signs PaymentIntent using EIP-712
-- Waits for synchronous settlement
-- Receives content + payment confirmation
+### Phase 2: Buyer Creates TWO Signatures
+
+**Step 2.1: Create Payment Intent**
+
+```typescript
+const intent: PaymentIntent = {
+  seller: "0x301541177dE41fBEF4924a911F1959185647b7A5",
+  buyer: "0x0AE6EF742a4347c9C5a9f7aF18b7455A6b78821E",
+  amount: "10000", // 0.01 USDC (6 decimals)
+  token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  nonce: "0x7a2b4e25c98bf7...",
+  expiry: 1732233780,
+  resource: "/api/content/premium", // ← RESOURCE BINDING
+  chainId: 84532,
+};
+```
+
+**Step 2.2: Sign with x402 Domain (HTTP Authorization)**
+
+```typescript
+// Domain for HTTP layer
+const x402Domain = {
+  name: "x402-Payment-Intent",
+  version: "2",
+  chainId: 84532,
+  verifyingContract: "0x0000000000000000000000000000000000000402"
+};
+
+const x402Signature = await signer.signTypedData(
+  x402Domain,
+  { PaymentIntent: [...] },
+  intent
+);
+// Result: Cryptographic proof of authorization for THIS resource
+```
+
+**Step 2.3: Convert to EIP-3009 Format**
+
+```typescript
+const transferAuth: TransferAuthorization = {
+  from: intent.buyer,
+  to: intent.seller,
+  value: intent.amount,
+  validAfter: 0,
+  validBefore: intent.expiry,
+  nonce: intent.nonce, // ← SAME NONCE (binding!)
+};
+```
+
+**Step 2.4: Query USDC for Domain & Sign**
+
+```typescript
+// Dynamically query USDC contract
+const usdcDomain = await getUSDCDomain(tokenAddress, chainId, provider);
+// Returns: { name: "USDC", version: "2", chainId: 84532, verifyingContract: "0x036..." }
+
+const eip3009Signature = await signer.signTypedData(
+  usdcDomain,
+  { TransferWithAuthorization: [...] },
+  transferAuth
+);
+// Result: Authorization for USDC contract to execute transfer
+```
+
+### Phase 3: Payment Submission
+
+```http
+GET /api/content/premium HTTP/1.1
+Host: localhost:4022
+x-payment: {
+  "scheme": "intent",
+  "data": {
+    "intent": {...},
+    "x402Signature": "0xc7e20c...",
+    "transferAuth": {...},
+    "eip3009Signature": "0x0bde82..."
+  }
+}
+```
+
+### Phase 4: Facilitator Validates BOTH Signatures
+
+**Step 4.1: Validate x402 Signature**
+
+```typescript
+const x402Recovered = verifyX402PaymentIntent(intent, x402Signature, chainId);
+// Checks: Resource binding, nonce, expiry, signature validity
+```
+
+**Step 4.2: Validate EIP-3009 Signature**
+
+```typescript
+const eip3009Recovered = await verifyTransferAuthorizationWithProvider(
+  transferAuth,
+  eip3009Signature,
+  tokenAddress,
+  chainId,
+  provider
+);
+// Checks: Signature matches buyer, nonce matches
+```
+
+**Step 4.3: Execute On-Chain Settlement**
+
+```typescript
+const tx = await usdcContract.transferWithAuthorization(
+  transferAuth.from,
+  transferAuth.to,
+  transferAuth.value,
+  transferAuth.validAfter,
+  transferAuth.validBefore,
+  transferAuth.nonce,
+  v,
+  r,
+  s // EIP-3009 signature components
+);
+await tx.wait(); // Wait for confirmation
+```
+
+### Phase 5: Content Delivery
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+x-payment-response: {
+  "status": "settled",
+  "txHash": "0x64746c6f2334c879...",
+  "network": "base-sepolia"
+}
+
+{
+  "content": {
+    "title": "Premium AI Model Output",
+    "data": { ... }
+  },
+  "payment": {
+    "txHash": "0x64746c6f2334c879...",
+    "amount": "10000"
+  }
+}
+```
+
+## 🔒 Security Features
+
+### Two-Signature Pattern
+
+| Layer      | Signature | Purpose                             | Verifying Contract         |
+| ---------- | --------- | ----------------------------------- | -------------------------- |
+| HTTP       | x402      | Authorization with resource binding | `0x0000...0402` (symbolic) |
+| Blockchain | EIP-3009  | Settlement authorization            | USDC contract address      |
+
+### Cryptographic Bindings
+
+| Binding      | Implementation                | Security Benefit                          |
+| ------------ | ----------------------------- | ----------------------------------------- |
+| **Nonce**    | Same nonce in both signatures | Links HTTP auth to settlement             |
+| **Resource** | In x402 signature             | Prevents signature reuse across endpoints |
+| **Seller**   | In both signatures            | Ensures correct recipient                 |
+| **Amount**   | In both signatures            | Prevents manipulation                     |
+| **Buyer**    | Both signed by buyer          | Proves buyer authorization                |
+
+### Replay Protection
+
+- **Off-chain** - Facilitator tracks used nonces in memory
+- **On-chain** - USDC contract's `authorizationState` prevents reuse
+- **Expiry** - 3-minute validity window limits attack window
+
+## 🌐 Multi-Chain Support
+
+### Supported Networks
+
+| Network          | Chain ID | USDC Address                                 |
+| ---------------- | -------- | -------------------------------------------- |
+| Base Sepolia     | 84532    | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| Ethereum Sepolia | 11155111 | `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238` |
+| Arbitrum Sepolia | 421614   | `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d` |
+| Optimism Sepolia | 11155420 | `0x5fd84259d66Cd46123540766Be93DFE6D43130D7` |
+| Polygon Amoy     | 80002    | `0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582` |
+| Arc Testnet      | 1243     | `0xCc127bb4c1bE4e2ee33e38bcf7a3e7f5eCd7E1B1` |
+
+### Dynamic Domain Resolution
+
+The implementation automatically queries each USDC contract for its correct EIP-712 domain:
+
+```typescript
+export async function getUSDCDomain(
+  tokenAddress: string,
+  chainId: number,
+  provider: ethers.Provider
+): Promise<EIP712Domain> {
+  const usdcContract = new ethers.Contract(tokenAddress, USDC_ABI, provider);
+
+  const name = await usdcContract.name();
+  const version = await usdcContract.EIP712_VERSION();
+
+  return {
+    name, // "USDC" or "USD Coin" depending on chain
+    version, // "2" typically
+    chainId,
+    verifyingContract: tokenAddress,
+  };
+}
+```
+
+This ensures cross-chain compatibility without hardcoding domain values.
+
+## 📊 Performance
+
+### Typical Latency (Base Sepolia)
+
+| Phase                           | Duration  | Percentage |
+| ------------------------------- | --------- | ---------- |
+| Initial Request                 | ~50ms     | 0.5%       |
+| Dual Signing                    | ~1.3s     | 13.5%      |
+| Payment Submission + Settlement | ~5.2s     | 54.7%      |
+| On-Chain Verification           | ~1.6s     | 17.2%      |
+| **Total**                       | **~9.4s** | **100%**   |
+
+### Gas Costs
+
+- **Buyer**: 0 gas (gasless EIP-3009 transfer)
+- **Facilitator**: ~85,720 gas for `transferWithAuthorization`
 
 ## 🛠️ Development
 
-### Run Tests
+### Project Structure
 
-```bash
-# Foundry tests (when contracts added)
-npm run test
-
-# Fork tests against Base Sepolia
-npm run test:fork:base
+```
+x402-escrow/
+├── buyer/           # Client agent (creates payment intents)
+├── seller/          # Content server (HTTP 402)
+├── facilitator/     # Settlement executor
+├── shared/          # Common types, EIP-712 utilities
+├── scripts/         # Demo and utility scripts
+├── README.md        # This file
+├── X402_STANDARD.md # Official x402 specification
+└── COMPLIANCE_REVIEW.md # Implementation compliance review
 ```
 
-### Scripts
+### Available Scripts
 
 ```bash
-npm run balances    # Check wallet balances (all chains)
-npm run fund        # Fund wallets (all chains)
-npm run facilitator # Start facilitator server
-npm run seller      # Start seller server
-npm run buyer       # Run buyer payment flow (no approval needed!)
+# Server Management
+npm run start        # Start facilitator & seller
+npm run stop         # Stop all servers
+
+# Component Testing
+npm run buyer        # Run buyer agent
+npm run seller       # Run seller server
+npm run facilitator  # Run facilitator server
+
+# Demos
+npm run demo:exact        # Run demo (servers must be running)
+npm run demo:exact:full   # Full automated demo (start→test→stop)
+
+# Wallet Management
+npm run fund         # Fund wallets with native tokens and USDC
+npm run balances     # Check balances across all networks
 ```
 
-## 📊 Polygon x402 Compliance
+### Adding a New Chain
 
-This implementation follows [Polygon's x402 specification](https://agentic-docs.polygon.technology/general/x402/how-it-works/):
+1. **Add RPC endpoint to `.env`:**
 
-- ✅ **HTTP 402 Status Code**: Returns 402 for unpaid requests
-- ✅ **PaymentRequirements**: Structured payment info in 402 response
-- ✅ **X-PAYMENT Header**: Buyer sends payment in standardized header
-- ✅ **X-PAYMENT-RESPONSE**: Seller confirms settlement
-- ✅ **Synchronous Settlement**: Payment confirmed before delivery
-- ✅ **EIP-712 Signatures**: Cryptographic authorization
-- ✅ **Multi-Chain**: Works on any EVM chain
+   ```bash
+   NEW_CHAIN_RPC=https://rpc.newchain.example
+   ```
 
-### Alignment with Polygon Reference
+2. **Add USDC address to `.env`:**
 
-- ✅ Uses **EIP-3009** (`transferWithAuthorization`) - same as Polygon
-- ✅ **Synchronous settlement** - payment confirmed before content delivery
-- ✅ **NO APPROVAL NEEDED** - signature serves as authorization (gasless for buyer)
-- ✅ **Facilitator executes settlement** - standard x402 pattern
+   ```bash
+   USDC_NEW_CHAIN=0x...
+   ```
 
-## 🔐 Security
+3. **Update `foundry.toml`:**
 
-- **Replay Protection**: Nonce tracking (off-chain + on-chain)
-- **Signature Verification**: EIP-712 domain binding
-- **Expiry Enforcement**: Intents expire after set time
-- **Chain ID Binding**: Prevents cross-chain replay attacks
-- **Amount Verification**: Exact amount matching required
+   ```toml
+   [rpc_endpoints]
+   new_chain = "${NEW_CHAIN_RPC}"
+   ```
 
-## 🎯 Future Enhancements
+4. **The code automatically handles the rest** through dynamic domain resolution!
 
-- [ ] Batch settlement for gas optimization
-- [ ] Deferred settlement option
-- [ ] Vault-based escrow mode
-- [ ] ZK-privacy layer
-- [ ] EIP-3009 integration (gasless approvals)
-- [ ] Multi-token support beyond USDC
-- [ ] Refund mechanisms
-- [ ] Subscription models
+## 📚 Documentation
+
+- **[README.md](./README.md)** (this file) - Complete implementation guide
+- **[X402_STANDARD.md](./X402_STANDARD.md)** - Official x402 protocol specification
+- **[COMPLIANCE_REVIEW.md](./COMPLIANCE_REVIEW.md)** - Full compliance analysis and verification
+
+## 🔗 References
+
+- **x402 Standard**: https://agentic-docs.polygon.technology/general/x402/intro/
+- **EIP-712**: https://eips.ethereum.org/EIPS/eip-712
+- **EIP-3009**: https://eips.ethereum.org/EIPS/eip-3009
+- **HTTP 402**: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402
+
+## 🤝 Contributing
+
+This is a reference implementation for educational and demonstration purposes. Contributions, issues, and feature requests are welcome!
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](./LICENSE) file for details
 
-## 🔗 Resources
+## ⚠️ Security Notice
 
-- [Polygon x402 Documentation](https://agentic-docs.polygon.technology/general/x402/)
-- [HTTP 402 Payment Required](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402)
-- [EIP-712: Typed Data Signing](https://eips.ethereum.org/EIPS/eip-712)
-- [Circle USDC](https://www.circle.com/en/usdc)
-- [Foundry Book](https://book.getfoundry.sh/)
+**This implementation is for demonstration and testing purposes.**
 
-## 📧 Contact
+For production use:
 
-Built for ETHGlobal Brussels 2025
+- Use HTTPS (not HTTP) for all communications
+- Implement proper key management (not raw private keys in `.env`)
+- Add rate limiting and DDoS protection
+- Implement proper error handling and monitoring
+- Consider using hardware security modules (HSMs) for facilitator keys
+- Audit smart contracts and cryptographic implementations
+
+## 🎓 Learn More
+
+### Why Two Signatures?
+
+The two-signature pattern provides complete cryptographic guarantees:
+
+1. **x402 Signature** (HTTP Layer)
+
+   - Binds payment to specific resource
+   - Prevents signature reuse across endpoints
+   - Works with any payment method (not just USDC)
+
+2. **EIP-3009 Signature** (Settlement Layer)
+   - Authorizes blockchain transfer
+   - Enables gasless payments for buyer
+   - Provides on-chain settlement guarantees
+
+### Why Not Just EIP-3009?
+
+EIP-3009 alone doesn't include the `resource` field, so a signature could theoretically be reused for different endpoints. The x402 signature adds resource binding at the HTTP layer, ensuring each signature is valid for exactly one resource.
+
+### Comparison with Alternatives
+
+| Approach                    | Resource Binding  | Gasless       | Settlement   |
+| --------------------------- | ----------------- | ------------- | ------------ |
+| **This Implementation**     | ✅ Cryptographic  | ✅ Yes        | Synchronous  |
+| EIP-3009 Only               | ❌ Off-chain only | ✅ Yes        | Synchronous  |
+| ERC-20 approve/transferFrom | ❌ Off-chain only | ❌ No         | Synchronous  |
+| Payment Channels            | ✅ Cryptographic  | ⚠️ Setup cost | Asynchronous |
 
 ---
 
-**⚠️ Testnet Only**: This is a reference implementation for testing. Do not use with real funds.
+**Built for ETHGlobal** | **x402 Reference Implementation** | **2025**
