@@ -58,9 +58,12 @@ check_usdc_balance() {
         echo "N/A"
         return
     fi
-    local result=$($CAST call "$usdc_address" "balanceOf(address)(uint256)" "$address" --rpc-url "$rpc" 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        format_usdc "$result"
+    # Get balance as decimal (cast returns decimal by default, e.g. "10000000 [1e7]")
+    local result=$($CAST call "$usdc_address" "balanceOf(address)(uint256)" "$address" --rpc-url "$rpc" 2>/dev/null | awk '{print $1}')
+    if [ $? -eq 0 ] && [ -n "$result" ]; then
+        # Result is already decimal, just divide by 1e6
+        local usdc=$(echo "scale=2; $result / 1000000" | bc -l 2>/dev/null || echo "0.00")
+        echo "$usdc"
     else
         echo "ERROR"
     fi

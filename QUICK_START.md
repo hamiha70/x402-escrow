@@ -23,6 +23,7 @@ cp example.env .env
 ```
 
 Required variables:
+
 - `BUYER_WALLET_ADDRESS` + `BUYER_PRIVATE_KEY`
 - `SELLER_WALLET_ADDRESS` + `SELLER_PRIVATE_KEY`
 - `FACILITATOR_WALLET_ADDRESS` + `FACILITATOR_PRIVATE_KEY`
@@ -32,10 +33,12 @@ Required variables:
 ### 3. Fund Wallets
 
 The buyer needs:
+
 - **Base Sepolia ETH** (for gas when approving)
 - **USDC on Base Sepolia** (for payments)
 
 Get testnet tokens:
+
 - ETH: https://portal.cdp.coinbase.com/products/faucet
 - USDC: Swap testnet ETH or use Circle's testnet faucet
 
@@ -56,11 +59,13 @@ This grants the facilitator permission to execute `transferFrom` on behalf of th
 In **separate terminals**:
 
 **Terminal 1 - Facilitator:**
+
 ```bash
 npm run facilitator
 ```
 
 **Terminal 2 - Seller:**
+
 ```bash
 npm run seller
 ```
@@ -68,6 +73,7 @@ npm run seller
 ### Step 3: Make a Payment
 
 In **Terminal 3 - Buyer:**
+
 ```bash
 npm run buyer
 ```
@@ -90,6 +96,7 @@ npm run buyer
 ## Verification
 
 Check the transaction on Base Sepolia:
+
 ```
 https://sepolia.basescan.org/tx/<TX_HASH>
 ```
@@ -97,15 +104,19 @@ https://sepolia.basescan.org/tx/<TX_HASH>
 ## Troubleshooting
 
 ### "Insufficient allowance"
+
 Run the approve script: `npm run approve`
 
 ### "Insufficient balance"
+
 Fund your buyer wallet with USDC
 
 ### "Facilitator unavailable"
+
 Make sure the facilitator server is running on port 4023
 
 ### "Invalid signature"
+
 Check that `FACILITATOR_WALLET_ADDRESS` in `.env` matches the running facilitator
 
 ## Architecture
@@ -141,4 +152,3 @@ Check that `FACILITATOR_WALLET_ADDRESS` in `.env` matches the running facilitato
 - Run E2E tests: `npm run test:e2e`
 - Deploy on other chains (Polygon Amoy, etc.)
 - Add batching and deferred settlement (future enhancement)
-
