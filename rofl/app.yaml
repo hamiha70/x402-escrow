@@ -11,6 +11,10 @@ endpoints:
     methods: [GET]
   - path: /balance
     methods: [GET]
+  - path: /activity
+    methods: [GET]
+  - path: /activity/{address}
+    methods: [GET]
   - path: /health
     methods: [GET]
   - path: /attestation

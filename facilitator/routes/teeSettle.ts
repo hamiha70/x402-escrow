@@ -120,20 +120,21 @@ export function createTEESettleRouter(
 				return res.status(400).json({ error: "Payment intent expired" });
 			}
 
-			// 4. Check balance in ledger
-			const balance = ledger.getBalance(intent.buyer);
+			// 4. Check balance in ledger for this chain
+			const balance = ledger.getBalance(intent.buyer, intent.chainId);
 			if (balance < BigInt(intent.amount)) {
 				logger.warn(
-					`Insufficient balance: ${balance} < ${intent.amount}`
+					`Insufficient balance on chain ${intent.chainId}: ${balance} < ${intent.amount}`
 				);
 				return res.status(402).json({
 					error: "Insufficient balance",
 					currentBalance: balance.toString(),
 					required: intent.amount,
+					chain: intent.chainId,
 				});
 			}
 
-			logger.info(`✓ Sufficient balance: ${balance}`);
+			logger.info(`✓ Sufficient balance on chain ${intent.chainId}: ${balance}`);
 
 			// 5. Check seller is allowlisted
 			const isAllowed = await vaultManager.isSellerAllowed(
@@ -184,9 +185,9 @@ export function createTEESettleRouter(
 				// Settlement already happened on-chain; log error but return success
 			}
 
-			const newBalance = ledger.getBalance(intent.buyer);
+			const newBalance = ledger.getBalance(intent.buyer, intent.chainId);
 
-			logger.info(`✓ New balance: ${newBalance}`);
+			logger.info(`✓ New balance on chain ${intent.chainId}: ${newBalance}`);
 
 			// 8. Return receipt
 			return res.status(200).json({

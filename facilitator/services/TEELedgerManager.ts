@@ -28,15 +28,33 @@ export interface SpendRecord {
 	intentHash: string;
 }
 
-export interface BuyerAccount {
+export interface ChainAccount {
 	balance: string;
 	nonce: number;
 	deposits: DepositRecord[];
 	spends: SpendRecord[];
 }
 
+export interface BuyerAccount {
+	chains: Record<number, ChainAccount>;
+}
+
+export interface ActivityLogEntry {
+	timestamp: number;
+	type: "deposit" | "spend";
+	buyer: string;
+	chain: number;
+	amount: string;
+	txHash: string;
+	ledgerHash: string;
+	seller?: string;
+	resource?: string;
+	intentHash?: string;
+}
+
 export interface Ledger {
 	buyers: Record<string, BuyerAccount>;
+	activityLog: ActivityLogEntry[];
 	metadata: {
 		lastUpdated: number;
 		totalDeposits: string;
@@ -74,6 +92,7 @@ export class TEELedgerManager {
 		// Create new ledger
 		return {
 			buyers: {},
+			activityLog: [],
 			metadata: {
 				lastUpdated: Date.now(),
 				totalDeposits: "0",
@@ -116,6 +135,15 @@ export class TEELedgerManager {
 		// Initialize buyer account if doesn't exist
 		if (!this.ledger.buyers[buyer]) {
 			this.ledger.buyers[buyer] = {
+				chains: {},
+			};
+		}
+
+		const buyerAccount = this.ledger.buyers[buyer];
+
+		// Initialize chain account if doesn't exist
+		if (!buyerAccount.chains[chain]) {
+			buyerAccount.chains[chain] = {
 				balance: "0",
 				nonce: 0,
 				deposits: [],
@@ -123,19 +151,19 @@ export class TEELedgerManager {
 			};
 		}
 
-		const account = this.ledger.buyers[buyer];
+		const chainAccount = buyerAccount.chains[chain];
 
 		// Add deposit record
-		account.deposits.push({
+		chainAccount.deposits.push({
 			amount,
 			timestamp: Date.now(),
 			chain,
 			txHash,
 		});
 
-		// Update balance
-		account.balance = (
-			BigInt(account.balance) + BigInt(amount)
+		// Update balance for this chain
+		chainAccount.balance = (
+			BigInt(chainAccount.balance) + BigInt(amount)
 		).toString();
 
 		// Update metadata
@@ -143,16 +171,27 @@ export class TEELedgerManager {
 			BigInt(this.ledger.metadata.totalDeposits) + BigInt(amount)
 		).toString();
 
+		// Add to activity log
+		this.ledger.activityLog.push({
+			timestamp: Date.now(),
+			type: "deposit",
+			buyer,
+			chain,
+			amount,
+			txHash,
+			ledgerHash: this.computeLedgerHash(),
+		});
+
 		this.saveLedger();
 
 		logger.info(
 			`Deposit recorded: ${buyer} deposited ${amount} on chain ${chain}`
 		);
-		logger.info(`New balance: ${account.balance}`);
+		logger.info(`New balance on chain ${chain}: ${chainAccount.balance}`);
 	}
 
 	/**
-	 * Record spend (deduct from buyer balance)
+	 * Record spend (deduct from buyer balance on specific chain)
 	 */
 	public recordSpend(
 		buyer: string,
@@ -163,20 +202,25 @@ export class TEELedgerManager {
 		txHash: string,
 		intentHash: string
 	): void {
-		const account = this.ledger.buyers[buyer];
-		if (!account) {
+		const buyerAccount = this.ledger.buyers[buyer];
+		if (!buyerAccount) {
 			throw new Error(`Buyer ${buyer} not found in ledger`);
 		}
 
-		// Check sufficient balance
-		if (BigInt(account.balance) < BigInt(amount)) {
+		const chainAccount = buyerAccount.chains[chain];
+		if (!chainAccount) {
+			throw new Error(`Buyer ${buyer} has no balance on chain ${chain}`);
+		}
+
+		// Check sufficient balance on this chain
+		if (BigInt(chainAccount.balance) < BigInt(amount)) {
 			throw new Error(
-				`Insufficient balance: ${account.balance} < ${amount}`
+				`Insufficient balance on chain ${chain}: ${chainAccount.balance} < ${amount}`
 			);
 		}
 
 		// Add spend record
-		account.spends.push({
+		chainAccount.spends.push({
 			seller,
 			amount,
 			resource,
@@ -186,43 +230,65 @@ export class TEELedgerManager {
 			intentHash,
 		});
 
-		// Update balance
-		account.balance = (
-			BigInt(account.balance) - BigInt(amount)
+		// Update balance for this chain
+		chainAccount.balance = (
+			BigInt(chainAccount.balance) - BigInt(amount)
 		).toString();
 
-		// Increment nonce
-		account.nonce++;
+		// Increment nonce for this chain
+		chainAccount.nonce++;
 
 		// Update metadata
 		this.ledger.metadata.totalSpends = (
 			BigInt(this.ledger.metadata.totalSpends) + BigInt(amount)
 		).toString();
 
+		// Add to activity log
+		this.ledger.activityLog.push({
+			timestamp: Date.now(),
+			type: "spend",
+			buyer,
+			chain,
+			amount,
+			txHash,
+			ledgerHash: this.computeLedgerHash(),
+			seller,
+			resource,
+			intentHash,
+		});
+
 		this.saveLedger();
 
 		logger.info(
 			`Spend recorded: ${buyer} paid ${seller} ${amount} on chain ${chain}`
 		);
-		logger.info(`New balance: ${account.balance}, nonce: ${account.nonce}`);
+		logger.info(`New balance on chain ${chain}: ${chainAccount.balance}, nonce: ${chainAccount.nonce}`);
 	}
 
 	/**
-	 * Get buyer balance
+	 * Get buyer balance on specific chain
 	 */
-	public getBalance(buyer: string): bigint {
+	public getBalance(buyer: string, chain: number): bigint {
 		const account = this.ledger.buyers[buyer];
-		if (!account) {
+		if (!account || !account.chains[chain]) {
 			return 0n;
 		}
-		return BigInt(account.balance);
+		return BigInt(account.chains[chain].balance);
 	}
 
 	/**
-	 * Get buyer account details
+	 * Get buyer account details (all chains)
 	 */
 	public getAccount(buyer: string): BuyerAccount | null {
 		return this.ledger.buyers[buyer] || null;
+	}
+
+	/**
+	 * Get buyer account details for specific chain
+	 */
+	public getChainAccount(buyer: string, chain: number): ChainAccount | null {
+		const account = this.ledger.buyers[buyer];
+		return account?.chains[chain] || null;
 	}
 
 	/**
@@ -256,42 +322,68 @@ export class TEELedgerManager {
 		// Create deterministic hash of ledger state
 		const buyerAddresses = Object.keys(this.ledger.buyers).sort();
 		
-		const buyerHashes = buyerAddresses.map((address) => {
+		const buyerChainHashes = buyerAddresses.flatMap((address) => {
 			const account = this.ledger.buyers[address];
-			return ethers.keccak256(
-				ethers.AbiCoder.defaultAbiCoder().encode(
-					["address", "uint256", "uint256"],
-					[address, account.balance, account.nonce]
-				)
-			);
+			const chainIds = Object.keys(account.chains).sort();
+			
+			return chainIds.map((chainId) => {
+				const chainAccount = account.chains[Number(chainId)];
+				return ethers.keccak256(
+					ethers.AbiCoder.defaultAbiCoder().encode(
+						["address", "uint256", "uint256", "uint256"],
+						[address, chainId, chainAccount.balance, chainAccount.nonce]
+					)
+				);
+			});
 		});
 
-		if (buyerHashes.length === 0) {
+		if (buyerChainHashes.length === 0) {
 			return "0x0000000000000000000000000000000000000000000000000000000000000000";
 		}
 
-		// Hash all buyer hashes together
+		// Hash all buyer-chain hashes together
 		const combinedHash = ethers.keccak256(
-			ethers.concat(buyerHashes.map((h) => ethers.getBytes(h)))
+			ethers.concat(buyerChainHashes.map((h) => ethers.getBytes(h)))
 		);
 
 		return combinedHash;
 	}
 
 	/**
-	 * Check if buyer has sufficient balance
+	 * Check if buyer has sufficient balance on specific chain
 	 */
-	public hasSufficientBalance(buyer: string, amount: string): boolean {
-		const balance = this.getBalance(buyer);
+	public hasSufficientBalance(buyer: string, chain: number, amount: string): boolean {
+		const balance = this.getBalance(buyer, chain);
 		return balance >= BigInt(amount);
 	}
 
 	/**
-	 * Get buyer nonce
+	 * Get buyer nonce for specific chain
 	 */
-	public getNonce(buyer: string): number {
+	public getNonce(buyer: string, chain: number): number {
 		const account = this.ledger.buyers[buyer];
-		return account?.nonce || 0;
+		return account?.chains[chain]?.nonce || 0;
+	}
+
+	/**
+	 * Get activity log (all activities)
+	 */
+	public getActivityLog(): ActivityLogEntry[] {
+		return this.ledger.activityLog;
+	}
+
+	/**
+	 * Get activity log for specific buyer
+	 */
+	public getBuyerActivityLog(buyer: string): ActivityLogEntry[] {
+		return this.ledger.activityLog.filter((entry) => entry.buyer === buyer);
+	}
+
+	/**
+	 * Get recent activity (last N entries)
+	 */
+	public getRecentActivity(limit: number = 50): ActivityLogEntry[] {
+		return this.ledger.activityLog.slice(-limit);
 	}
 }
 
