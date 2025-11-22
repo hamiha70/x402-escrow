@@ -96,19 +96,29 @@ Seller Endpoints:
 - USDC Contract: `0x3600000000000000000000000000000000000000`
 - Latency: 7.31s (failed before settlement)
 
-**Issue Analysis**:
-The EIP-3009 signature verification failed on-chain. Possible reasons:
+**Issue Analysis** (RESOLVED):
 
-1. **Domain mismatch**: Arc's USDC contract may use different EIP-712 domain parameters (`name`, `version`) than expected
-2. **Non-standard USDC**: Arc may use a custom USDC implementation not fully EIP-3009 compatible
-3. **Signature format**: Arc might require different signature parameters
+Arc uses a **unique native USDC design** where USDC serves as both:
 
-**Next Steps**:
+1. Native gas token (18 decimals)
+2. ERC-20 token (6 decimals)
 
-- Query Arc USDC contract for its actual EIP-712 domain
-- Check if Arc USDC implements `EIP712_VERSION()` function
-- Verify Arc USDC supports `transferWithAuthorization`
-- Consider fallback to standard `transferFrom` for Arc
+This dual-interface precompiled contract at `0x3600...0000`:
+
+- ✓ Proxies to implementation at `0x3910B7cbb3341f1F4bF4cEB66e4A2C8f204FE2b8`
+- ✓ Implementation DOES have `transferWithAuthorization`
+- ❌ Domain separator mismatch: On-chain `0x36119...c6b0` ≠ Calculated `0x94e71...4b37`
+
+**Root Cause**: Arc's precompiled native USDC uses non-standard EIP-712 domain parameters. Tested variations:
+
+- Different chainId values (0-10000)
+- Implementation address vs proxy address
+- Different name/version combinations
+- None matched the on-chain domain separator
+
+**Solution**: Use standard ERC-20 `approve` + `transferFrom` for Arc (loses gasless benefit but works reliably)
+
+**Documented in**: `ARC_USDC_ANALYSIS.md`
 
 **Seller endpoint**: `/api/content/premium/arc`
 
