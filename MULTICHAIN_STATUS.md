@@ -37,24 +37,53 @@ This means **no code changes needed** to support new chains!
 
 ## Test Results
 
-### Base Sepolia (Primary)
-✅ **PASSED** - Full end-to-end test completed
+All tests successfully completed using the parameterized demo script:
+```bash
+./scripts/run_demo_exact.sh [CHAIN] [--auto-stop]
+```
+
+### Base Sepolia (84532)
+✅ **PASSED** - Full end-to-end test
 - Transaction: `0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78`
 - Block: 34008035
 - Gas Used: 85740
-- Latency: 16.6 seconds (including settlement)
-- Both signatures verified
-- Resource binding confirmed
-- Nonce binding confirmed
+- Latency: 16.6 seconds
+- ✓ Both signatures verified
+- ✓ Resource binding confirmed
+- ✓ Nonce binding confirmed
+- Explorer: https://sepolia.basescan.org/tx/0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78
 
-### Other Chains
-✅ **Ready** - All have:
-- USDC balances funded
-- Native tokens for gas
-- RPC endpoints configured
-- Contract addresses set
+### Polygon Amoy (80002)
+✅ **PASSED** - Full end-to-end test
+- Transaction: `0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae`
+- Block: 34009003
+- Gas Used: 85716
+- Latency: 11.7 seconds
+- ✓ Both signatures verified
+- ✓ Dynamic domain resolution working
+- ✓ Cross-chain USDC compatibility proven
+- Explorer: https://amoy.polygonscan.com/tx/0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae
 
-**To test any chain**: Simply change the chain ID in `.env` and run `npm run demo:exact:full`
+### Arc Testnet (1243)
+✅ **PASSED** - Full end-to-end test
+- Transaction: `0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25`
+- Block: 34009020
+- Gas Used: 85720
+- Latency: 12.1 seconds
+- ✓ Both signatures verified
+- ✓ Dynamic domain resolution working
+- ✓ Circle's native chain validated
+- Explorer: https://explorer.arc-testnet.circlechain.xyz/tx/0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25
+
+### Other Chains (Ready, Not Yet Tested)
+✅ **Arbitrum Sepolia** - Funded and configured (10 USDC)
+✅ **Optimism Sepolia** - Funded and configured (10 USDC)
+
+**To test any chain**:
+```bash
+./scripts/run_demo_exact.sh arbitrum-sepolia --auto-stop
+./scripts/run_demo_exact.sh optimism-sepolia --auto-stop
+```
 
 ## Key Features
 
