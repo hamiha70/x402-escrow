@@ -300,8 +300,8 @@ async function runDemo(): Promise<DemoResult> {
 		logger.logDetail("Intent seller", paymentRequirements.seller);
 
 		// SIGNATURE 1: x402 (HTTP layer with resource binding)
-		logger.info("");
-		logger.info("━━━ SIGNATURE 1: x402 Payment Intent (Resource Binding) ━━━");
+		console.log("");
+		logger.log("info", "━━━ SIGNATURE 1: x402 Payment Intent (Resource Binding) ━━━");
 		const x402Start = Date.now();
 		const x402Signature = await signX402PaymentIntent(
 			intent,
@@ -323,8 +323,8 @@ async function runDemo(): Promise<DemoResult> {
 		}
 
 		// SIGNATURE 2: EIP-3009 (Blockchain settlement)
-		logger.info("");
-		logger.info("━━━ SIGNATURE 2: EIP-3009 Transfer Authorization (Settlement) ━━━");
+		console.log("");
+		logger.log("info", "━━━ SIGNATURE 2: EIP-3009 Transfer Authorization (Settlement) ━━━");
 		logger.logDetail("Converting to EIP-3009 format...");
 		const transferAuth = paymentIntentToTransferAuth(intent);
 		
@@ -362,8 +362,8 @@ async function runDemo(): Promise<DemoResult> {
 		}
 
 		// Verify nonce binding
-		logger.info("");
-		logger.info("━━━ CRYPTOGRAPHIC BINDINGS ━━━");
+		console.log("");
+		logger.log("info", "━━━ CRYPTOGRAPHIC BINDINGS ━━━");
 		logger.logDetail("✓ Nonce in x402", intent.nonce.slice(0, 16) + "...");
 		logger.logDetail("✓ Nonce in EIP-3009", transferAuth.nonce.slice(0, 16) + "...");
 		logger.logDetail("✓ Nonce binding", intent.nonce === transferAuth.nonce ? "VERIFIED" : "FAILED");
@@ -401,7 +401,7 @@ async function runDemo(): Promise<DemoResult> {
 		logger.logDetail("✓ TransferAuth included", "YES");
 		logger.logDetail("✓ Nonce consistency", intent.nonce === transferAuth.nonce ? "VERIFIED" : "FAILED");
 
-		logger.info("");
+		console.log("");
 		logger.logDetail("Submitting to seller with x-payment header...");
 		const submissionStart = Date.now();
 		
@@ -426,17 +426,17 @@ async function runDemo(): Promise<DemoResult> {
 		const content = paidResponse.data.content;
 		const payment = paidResponse.data.payment;
 
-		logger.info("");
-		logger.info("━━━ FACILITATOR VERIFICATION RESULTS ━━━");
+		console.log("");
+		logger.log("info", "━━━ FACILITATOR VERIFICATION RESULTS ━━━");
 		logger.logDetail("✓ x402 signature", "VERIFIED by facilitator");
 		logger.logDetail("✓ Resource binding", "VERIFIED by facilitator");
 		logger.logDetail("✓ EIP-3009 signature", "VERIFIED by facilitator");
 		logger.logDetail("✓ Nonce binding", "VERIFIED by facilitator");
 		logger.logDetail("✓ On-chain settlement", "COMPLETED");
 
-		logger.info("");
+		console.log("");
 		logger.logDetail("Content title", content.title);
-		logger.logDetail("Content preview", content.data.substring(0, 50) + "...");
+		logger.logDetail("Content preview", JSON.stringify(content.data).substring(0, 50) + "...");
 		logger.logDetail("Transaction hash", payment.txHash);
 		logger.logDetail("Amount paid (raw)", payment.amount);
 
@@ -481,39 +481,39 @@ async function runDemo(): Promise<DemoResult> {
 		logger.endPhase("Phase 5", phaseStart);
 
 		// Final verification summary
-		logger.info("");
-		logger.info("═══════════════════════════════════════════════════════════");
-		logger.info("           ✓ TWO-SIGNATURE PATTERN VERIFIED");
-		logger.info("═══════════════════════════════════════════════════════════");
-		logger.info("");
-		logger.info("x402 Signature (HTTP Layer):");
-		logger.info(`  • Resource binding: ${RESOURCE}`);
-		logger.info(`  • Seller binding: ${sellerAddress}`);
-		logger.info(`  • Nonce: ${nonce.slice(0, 16)}...`);
-		logger.info(`  • Domain: x402-Payment-Intent v2`);
-		logger.info(`  • Verified by: Buyer (self), Facilitator`);
-		logger.info("");
-		logger.info("EIP-3009 Signature (Settlement Layer):");
-		logger.info(`  • Transfer: ${buyerWallet.address.slice(0, 8)}... → ${sellerAddress.slice(0, 8)}...`);
-		logger.info(`  • Amount: ${amount} (raw units)`);
-		logger.info(`  • Nonce: ${nonce.slice(0, 16)}... (SAME as x402)`);
-		logger.info(`  • Domain: Queried from USDC contract`);
-		logger.info(`  • Verified by: Buyer (self), Facilitator, USDC contract`);
-		logger.info("");
-		logger.info("Cryptographic Bindings:");
-		logger.info(`  ✓ Nonce links both signatures`);
-		logger.info(`  ✓ Resource binding prevents signature reuse`);
-		logger.info(`  ✓ Seller binding ensures correct recipient`);
-		logger.info(`  ✓ Amount binding prevents manipulation`);
-		logger.info("");
-		logger.info("Settlement Result:");
-		logger.info(`  • Transaction: ${payment.txHash}`);
-		logger.info(`  • Block: ${result.transaction!.blockNumber}`);
-		logger.info(`  • Gas used: ${result.transaction!.gasUsed}`);
-		logger.info(`  • Buyer balance change: ${result.balances!.buyerChange}`);
-		logger.info(`  • Seller balance change: ${result.balances!.sellerChange}`);
-		logger.info("");
-		logger.info("═══════════════════════════════════════════════════════════");
+		console.log("");
+		console.log("═══════════════════════════════════════════════════════════");
+		console.log("           ✓ TWO-SIGNATURE PATTERN VERIFIED");
+		console.log("═══════════════════════════════════════════════════════════");
+		console.log("");
+		console.log("x402 Signature (HTTP Layer):");
+		console.log(`  • Resource binding: ${RESOURCE}`);
+		console.log(`  • Seller binding: ${sellerAddress}`);
+		console.log(`  • Nonce: ${nonce.slice(0, 16)}...`);
+		console.log(`  • Domain: x402-Payment-Intent v2`);
+		console.log(`  • Verified by: Buyer (self), Facilitator`);
+		console.log("");
+		console.log("EIP-3009 Signature (Settlement Layer):");
+		console.log(`  • Transfer: ${buyerWallet.address.slice(0, 8)}... → ${sellerAddress.slice(0, 8)}...`);
+		console.log(`  • Amount: ${amount} (raw units)`);
+		console.log(`  • Nonce: ${nonce.slice(0, 16)}... (SAME as x402)`);
+		console.log(`  • Domain: Queried from USDC contract`);
+		console.log(`  • Verified by: Buyer (self), Facilitator, USDC contract`);
+		console.log("");
+		console.log("Cryptographic Bindings:");
+		console.log(`  ✓ Nonce links both signatures`);
+		console.log(`  ✓ Resource binding prevents signature reuse`);
+		console.log(`  ✓ Seller binding ensures correct recipient`);
+		console.log(`  ✓ Amount binding prevents manipulation`);
+		console.log("");
+		console.log("Settlement Result:");
+		console.log(`  • Transaction: ${payment.txHash}`);
+		console.log(`  • Block: ${result.transaction!.blockNumber}`);
+		console.log(`  • Gas used: ${result.transaction!.gasUsed}`);
+		console.log(`  • Buyer balance change: ${result.balances!.buyerChange}`);
+		console.log(`  • Seller balance change: ${result.balances!.sellerChange}`);
+		console.log("");
+		console.log("═══════════════════════════════════════════════════════════");
 
 		// Success!
 		result.success = true;

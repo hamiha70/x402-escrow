@@ -229,10 +229,11 @@ app.post("/settle", async (req, res) => {
 	try {
 		const payload: PaymentPayload = req.body;
 
-		// Validate payload structure
-		if (!payload.scheme || !payload.data || !payload.data.intent || !payload.data.signature) {
+		// Validate payload structure (two-signature pattern)
+		if (!payload.scheme || !payload.data || !payload.data.intent || 
+		    !payload.data.x402Signature || !payload.data.transferAuth || !payload.data.eip3009Signature) {
 			return res.status(400).json({
-				error: "Invalid payment payload structure",
+				error: "Invalid payment payload structure (requires x402Signature, transferAuth, eip3009Signature)",
 			});
 		}
 
