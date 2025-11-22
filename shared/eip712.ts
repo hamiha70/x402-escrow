@@ -5,8 +5,8 @@
  */
 
 import { ethers } from "ethers";
-import type { PaymentIntent, EIP712Domain } from "./types.js";
-import { PAYMENT_INTENT_TYPES } from "./types.js";
+import type { PaymentIntent, EIP712Domain, TransferAuthorization } from "./types.js";
+import { PAYMENT_INTENT_TYPES, TRANSFER_WITH_AUTHORIZATION_TYPES } from "./types.js";
 
 /**
  * Get EIP-712 domain for a given network and facilitator
@@ -98,7 +98,7 @@ export function hashPaymentIntent(intent: PaymentIntent): string {
  */
 export function paymentIntentToTransferAuth(
 	intent: PaymentIntent,
-): import("./types.js").TransferAuthorization {
+): TransferAuthorization {
 	return {
 		from: intent.buyer,
 		to: intent.seller,
@@ -119,19 +119,17 @@ export function paymentIntentToTransferAuth(
  * @returns The signature (hex string)
  */
 export async function signTransferAuthorization(
-	auth: import("./types.js").TransferAuthorization,
+	auth: TransferAuthorization,
 	tokenAddress: string,
 	chainId: number,
 	signer: ethers.Signer,
 ): Promise<string> {
-	const domain: import("./types.js").EIP712Domain = {
+	const domain: EIP712Domain = {
 		name: "USD Coin",  // USDC's EIP-712 domain name
 		version: "2",      // USDC version
 		chainId,
 		verifyingContract: tokenAddress,
 	};
-
-	const { TRANSFER_WITH_AUTHORIZATION_TYPES } = await import("./types.js");
 
 	const signature = await signer.signTypedData(
 		domain,
@@ -151,20 +149,17 @@ export async function signTransferAuthorization(
  * @returns The recovered signer address
  */
 export function verifyTransferAuthorization(
-	auth: import("./types.js").TransferAuthorization,
+	auth: TransferAuthorization,
 	signature: string,
 	tokenAddress: string,
 	chainId: number,
 ): string {
-	const domain: import("./types.js").EIP712Domain = {
+	const domain: EIP712Domain = {
 		name: "USD Coin",
 		version: "2",
 		chainId,
 		verifyingContract: tokenAddress,
 	};
-
-	// Dynamic import to avoid circular dependency
-	const { TRANSFER_WITH_AUTHORIZATION_TYPES } = require("./types.js");
 
 	const digest = ethers.TypedDataEncoder.hash(
 		domain,
