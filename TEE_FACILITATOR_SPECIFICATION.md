@@ -19,7 +19,66 @@ The TEE facilitator scheme provides **buyer-seller unlinkability** by running th
 
 ---
 
-## 2. Architecture Components
+## 2. System Architecture
+
+### Two-Component Design
+
+```
+┌─────────────────────────────────────────────────┐
+│  Facilitator (Outside TEE)                      │
+│  Location: facilitator/server.ts                │
+│  Port: 4023                                      │
+│                                                  │
+│  Handles:                                        │
+│  - x402-exact scheme (direct)                   │
+│  - x402-escrow-deferred scheme (direct)         │
+│  - x402-tee-facilitator (PROXY to ROFL)        │
+│                                                  │
+│  Routes:                                         │
+│  POST /settle          → ExactSettlement        │
+│  POST /validate-intent → EscrowDeferred         │
+│  POST /tee-settle      → PROXY to ROFL app ──┐  │
+│  GET /balance/:address → PROXY to ROFL app ──┤  │
+│  GET /activity         → PROXY to ROFL app ──┤  │
+└──────────────────────────────────────────────┼──┘
+                                               │
+                                               │ HTTP
+                                               ▼
+┌─────────────────────────────────────────────────┐
+│  ROFL App (Inside TEE)                          │
+│  Location: rofl-app/src/index.ts                │
+│  Port: 8080                                      │
+│  Deployment: Oasis ROFL marketplace             │
+│                                                  │
+│  Handles:                                        │
+│  - x402-tee-facilitator ONLY                    │
+│                                                  │
+│  Routes:                                         │
+│  POST /settle          → TEE settlement logic   │
+│  GET /balance/:address → TEE ledger query       │
+│  GET /activity         → Activity log           │
+│  GET /attestation      → TEE measurement        │
+│                                                  │
+│  Data:                                           │
+│  - /data/tee-ledger.json (sealed storage)       │
+│  - /data/tee-activity-log.json (sealed)         │
+│                                                  │
+│  Secrets (ROFL KMS):                             │
+│  - RPC URLs (Base, Polygon, etc.)               │
+│  - Private keys per chain                       │
+│  - Vault addresses per chain                    │
+└─────────────────────────────────────────────────┘
+```
+
+**Why this separation**:
+
+- ✅ TEE code is minimal and verifiable (small attack surface)
+- ✅ Non-TEE schemes don't pay TEE overhead
+- ✅ ROFL app is standalone (no dependency on facilitator codebase)
+- ✅ Facilitator provides unified API to sellers
+- ✅ Easy to verify TEE measurement (only rofl-app code matters)
+
+## 3. Architecture Components
 
 ### On-Chain: Omnibus Vault per Chain
 
@@ -108,12 +167,59 @@ contract OmnibusVault {
 
 **Atomicity**: Write to `tee-ledger.json.tmp`, then rename (atomic on POSIX)
 
-### TEE Environment: Oasis ROFL
+### TEE Environment: Oasis ROFL (Standalone App)
 
-**Runtime**: Docker container with Node.js facilitator  
+**Architecture**: Standalone Express.js application running INSIDE TEE
+
+- **NOT** the existing facilitator server (that runs outside TEE)
+- Self-contained HTTP server with only TEE-scheme logic
+- Own dependencies (express, ethers, minimal)
+- Communicates with external chains via RPC
+
+**Deployment**:
+
+- Standalone `rofl-app/` directory (separate from `facilitator/`)
+- Own package.json, tsconfig.json, build pipeline
+- Compiled to JavaScript, packaged in Docker, deployed to ROFL
+
+**Runtime**: Docker container with Node.js + TEE services only  
 **Secrets**: RPC URLs + facilitator private keys via ROFL KMS  
 **Storage**: `/data` mounted with TEE encryption  
 **Attestation**: TEE measurement available via `/attestation` endpoint
+
+### Facilitator (Outside TEE): Proxy/Router
+
+**Role**: The existing facilitator server acts as a **proxy** for TEE requests:
+
+- Handles exact and escrow-deferred schemes directly (outside TEE)
+- FORWARDS x402-tee-facilitator requests to ROFL instance
+- Provides unified API surface to sellers
+
+```typescript
+// facilitator/server.ts (outside TEE)
+app.post("/tee-settle", async (req, res) => {
+  // Proxy to ROFL instance
+  const roflUrl = process.env.ROFL_INSTANCE_URL;
+  const response = await axios.post(`${roflUrl}/settle`, req.body);
+  return res.json(response.data);
+});
+
+app.get("/balance/:address", async (req, res) => {
+  // Proxy to ROFL instance
+  const roflUrl = process.env.ROFL_INSTANCE_URL;
+  const response = await axios.get(`${roflUrl}/balance/${req.params.address}`, {
+    params: req.query,
+  });
+  return res.json(response.data);
+});
+```
+
+**Benefits**:
+
+- ✅ Clean separation: TEE code isolated from non-TEE code
+- ✅ Sellers see one facilitator URL (unified API)
+- ✅ ROFL app is minimal (only TEE logic, no scheme mixing)
+- ✅ Easy to verify TEE measurement (small codebase)
 
 ---
 
@@ -557,9 +663,50 @@ if (balance < BigInt(intentStruct.amount)) {
 
 ---
 
-## 12. ROFL Deployment Configuration
+## 12. File Structure (Corrected)
 
-### File: `rofl/app.yaml`
+### Standalone ROFL App (Runs INSIDE TEE)
+
+```
+rofl-app/                          # NEW: Standalone TEE application
+├── src/
+│   ├── index.ts                   # Main Express server (TEE only)
+│   ├── routes/
+│   │   ├── settle.ts              # POST /settle (TEE settlement)
+│   │   ├── balance.ts             # GET /balance/:address
+│   │   ├── activity.ts            # GET /activity
+│   │   └── attestation.ts         # GET /attestation
+│   ├── services/
+│   │   ├── TEELedgerManager.ts    # File-based accounting
+│   │   └── OmnibusVaultManager.ts # Vault interaction
+│   └── utils/
+│       ├── logger.ts              # Simple logger
+│       └── types.ts               # PaymentIntent types
+├── package.json                   # Minimal deps: express, ethers
+├── tsconfig.json
+├── Dockerfile                     # Builds ROFL app only
+└── README.md
+```
+
+### Facilitator (Runs OUTSIDE TEE)
+
+```
+facilitator/                       # Existing: Runs outside TEE
+├── server.ts                      # Main server (proxy to ROFL)
+├── routes/
+│   ├── exact.ts                   # Exact scheme (direct)
+│   ├── escrowDeferred.ts          # Escrow scheme (direct)
+│   └── teeProxy.ts                # NEW: Proxy to ROFL app
+└── services/
+    ├── ExactSettlement.ts         # Existing
+    └── EscrowDeferredValidation.ts # Existing
+```
+
+**Key point**: facilitator/services/TEELedgerManager.ts is moved INTO rofl-app/ and removed from facilitator/.
+
+### ROFL Configuration
+
+### File: `rofl-app/Dockerfile` (Updated)
 
 ```yaml
 name: x402-tee-facilitator
@@ -598,8 +745,6 @@ network:
   allow_outbound: true # For RPC calls to Base, Polygon, etc.
 ```
 
-### File: `rofl/Dockerfile`
-
 ```dockerfile
 FROM node:18-alpine
 
@@ -609,19 +754,21 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --production
 
-# Copy application code
-COPY facilitator/ ./facilitator/
-COPY shared/ ./shared/
+# Copy ROFL app code only
+COPY src/ ./src/
+COPY dist/ ./dist/
 
 # Create data directory for ledger
 RUN mkdir -p /data && chmod 700 /data
 
 # Expose HTTP port
-EXPOSE 4023
+EXPOSE 8080
 
-# Run facilitator server
-CMD ["node", "facilitator/server.js"]
+# Run ROFL app
+CMD ["node", "dist/index.js"]
 ```
+
+**Critical difference**: Only copies `rofl-app/src/` and `rofl-app/dist/`, NOT the entire facilitator directory.
 
 ### Deployment Commands
 
