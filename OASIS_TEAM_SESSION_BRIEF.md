@@ -8,28 +8,55 @@
 
 ## What We Built
 
-Complete implementation of **x402-tee-facilitator** scheme:
+Complete implementation of **x402-tee-facilitator** scheme with **standalone ROFL app**:
 
-- Smart contract: `OmnibusVault.sol` (simple vault with facilitator-only withdrawals)
-- TEE services: File-based ledger + vault manager
-- ROFL config: Docker + app.yaml ready for deployment
-- Multi-chain support: Works on Base, Polygon, Arbitrum, Optimism, Arc
-- Privacy: Buyer-seller linkage hidden (only visible in TEE ledger)
+**Architecture**:
 
-**Total**: ~1200 lines of production-ready code
+- **Standalone ROFL app** (`rofl-app/`): Runs IN TEE, handles tee-facilitator scheme only
+- **Main facilitator** (`facilitator/`): Runs OUTSIDE TEE, proxies TEE requests to ROFL
+- **Smart contract**: `OmnibusVault.sol` (facilitator-only withdrawals)
+- **Privacy**: Buyer-seller linkage hidden in TEE ledger
+
+```
+Main Facilitator (localhost:4023)
+  ├─ /settle → exact scheme
+  ├─ /validate-intent → escrow-deferred
+  └─ /tee-settle → PROXY to ROFL app
+                    ↓
+              ROFL App (TEE)
+                ├─ /settle → TEE accounting + on-chain settlement
+                ├─ /balance → Query TEE ledger
+                ├─ /activity → Activity log
+                └─ /attestation → TEE measurement
+```
+
+**Total**: ~1500 lines of production-ready code
 
 ---
 
 ## Key Questions for Oasis Team
 
-### 1. ROFL Configuration Validation
+### 1. ROFL App Structure Validation
 
-**File**: `rofl/app.yaml`
+**Key insight**: ROFL app is **standalone service**, not packaged facilitator
 
-Is this format correct for TypeScript/Node.js applications?
+**Files**:
 
-- Endpoints: POST /tee-settle, GET /balance, GET /activity, etc.
-- Secrets: RPC URLs + private keys via ROFL KMS
+- `rofl-app/src/index.ts` - Standalone Express server (TEE only)
+- `rofl-app/rofl.yaml` - ROFL configuration
+- `rofl-app/Dockerfile` - Builds rofl-app/ directory only
+
+**Questions**:
+
+- Is standalone app structure correct (separate from main facilitator)?
+- Should ROFL app expose routes at `/settle` or `/tee-settle`?
+- How does main facilitator discover ROFL instance URL after deployment?
+- Can we test ROFL app locally before deploying to TEE?
+
+**Configuration**: `rofl-app/rofl.yaml`
+
+- Endpoints: POST /settle, GET /balance, GET /activity, GET /attestation
+- Secrets: RPC URLs + TEE-specific private keys via ROFL KMS
 - Storage: /data mount (encrypted, persistent)
 - Network: allow_outbound for RPC calls to external chains
 
@@ -264,11 +291,26 @@ By end of Oasis session, we should have:
 
 ## Files to Review with Oasis Team
 
-1. `rofl/app.yaml` - ROFL configuration
-2. `rofl/Dockerfile` - Container image
-3. `TEE_FACILITATOR_SPECIFICATION.md` - Complete technical spec
-4. `src/OmnibusVault.sol` - Smart contract
-5. `facilitator/services/TEELedgerManager.ts` - Ledger implementation
+### Architecture
+
+1. `TEE_ARCHITECTURE_CORRECTION.md` - **START HERE** - Standalone ROFL app pattern
+2. `TEE_FACILITATOR_SPECIFICATION.md` - Complete technical spec
+
+### ROFL App (Standalone, runs IN TEE)
+
+3. `rofl-app/src/index.ts` - Main Express server (TEE only)
+4. `rofl-app/rofl.yaml` - ROFL configuration
+5. `rofl-app/Dockerfile` - Container build
+6. `rofl-app/src/services/TEELedgerManager.ts` - Ledger accounting
+7. `rofl-app/src/services/OmnibusVaultManager.ts` - Chain interaction
+
+### Smart Contract
+
+8. `src/OmnibusVault.sol` - Facilitator-controlled vault
+
+### Proxy Integration
+
+9. `facilitator/routes/teeProxy.ts` - Forwards requests to ROFL instance
 
 ---
 
