@@ -2,7 +2,7 @@
 
 ## Why We're 100% Sure We're Testing on the Correct Chain
 
-Our parameterized e2e test (`scripts/test-chain-e2e.ts`) implements **multiple independent verification layers** to guarantee we're testing on the intended blockchain network.
+Our parameterized e2e test (`scripts/test-chain-exact.ts`) implements **multiple independent verification layers** to guarantee we're testing on the intended blockchain network.
 
 ---
 
@@ -134,7 +134,7 @@ provider = new ethers.JsonRpcProvider(process.env.BASE_SEPOLIA_RPC);
 ### New (parameterized test):
 
 ```typescript
-// scripts/test-chain-e2e.ts
+// scripts/test-chain-exact.ts
 // ✅ Verifies network.chainId
 // ✅ Verifies eth_chainId RPC call
 // ✅ Verifies USDC contract exists

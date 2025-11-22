@@ -404,4 +404,72 @@ For production use, add:
 
 ---
 
+## 📦 Deployment
+
+### Deploy Vault to a New Chain
+
+```bash
+# Set target chain
+CHAIN=base_sepolia  # or polygon_amoy, arbitrum_sepolia, etc.
+
+# Deploy (facilitator is deployer)
+forge script script/DeployVault.s.sol:DeployVault \
+  --rpc-url $CHAIN \
+  --broadcast \
+  --verify \
+  -vvvv
+```
+
+### Update Deployment Addresses
+
+After deployment, update `deployed.env` with the new contract address:
+
+```bash
+# Example entry in deployed.env:
+VAULT_BASE_SEPOLIA=0x9ae3B8bba411C236d5aAC6c7548Ad6D389c3d833
+```
+
+### Deployment Checklist
+
+- [ ] Update `deployed.env` with contract address
+- [ ] Verify contract on block explorer
+- [ ] Run fork tests: `forge test --fork-url $RPC_URL`
+- [ ] Test with demo script: `npm run demo:exact:full`
+- [ ] Update `MULTICHAIN_STATUS.md`
+
+**See:** `archive/milestones/DEPLOYMENT_GUIDE.md` for detailed deployment instructions.
+
+---
+
+## ✅ Verification
+
+### Automated Verification (Recommended)
+
+```bash
+forge verify-contract \
+  <CONTRACT_ADDRESS> \
+  src/Vault.sol:Vault \
+  --chain-id <CHAIN_ID> \
+  --constructor-args $(cast abi-encode "constructor(address)" <USDC_ADDRESS>) \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
+### Required API Keys
+
+**ETHERSCAN_API_KEY** (covers Base, Arbitrum, Optimism, Ethereum):
+
+- Get from: https://etherscan.io/myapikey
+- Free tier: 5 calls/second
+
+**POLYGONSCAN_API_KEY** (covers Polygon Amoy):
+
+- Get from: https://polygonscan.com/myapikey
+- Free tier: 5 calls/second
+
+**Arc Testnet**: Uses Blockscout (automatic verification during deployment)
+
+**See:** `archive/milestones/VERIFICATION_GUIDE.md` for detailed verification instructions.
+
+---
+
 **Built for ETHGlobal** | **Making micropayments practical for AI agents** | **2025**

@@ -1,7 +1,7 @@
 # E2E Test Results - All Chains
 
 **Test Date**: November 22, 2024  
-**Test Script**: `scripts/test-chain-e2e.ts`  
+**Test Script**: `scripts/test-chain-exact.ts`  
 **Test Type**: EIP-3009 `transferWithAuthorization` end-to-end
 
 ---
