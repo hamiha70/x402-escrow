@@ -20,7 +20,18 @@ arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC}"
 optimism_sepolia = "${OPTIMISM_SEPOLIA_RPC}"
 
 # Etherscan API keys for verification
+# Note: Etherscan API V2 (Aug 2024+) allows ONE key for 60+ chains
+# Using separate keys here for compatibility and clarity
 [etherscan]
-base_sepolia = { key = "${BASESCAN_API_KEY}" }
+# Etherscan-family explorers (can use same ETHERSCAN_API_KEY for all via API V2)
+ethereum_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+arbitrum_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+optimism_sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
+# Polygon uses PolygonScan API (separate from Etherscan family)
+polygon_amoy = { key = "${POLYGONSCAN_API_KEY}" }
+
+# Arc Testnet may require manual verification (not Etherscan-compatible)
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
