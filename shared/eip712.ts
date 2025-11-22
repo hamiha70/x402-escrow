@@ -11,6 +11,7 @@
 import { ethers } from "ethers";
 import type { PaymentIntent, EIP712Domain, TransferAuthorization } from "./types.js";
 import { PAYMENT_INTENT_TYPES, TRANSFER_WITH_AUTHORIZATION_TYPES } from "./types.js";
+import { getKnownUSDCDomain, getCachedUSDCDomain } from "./usdc-config.js";
 
 /**
  * x402 Protocol Constants
@@ -193,8 +194,6 @@ export async function signTransferAuthorization(
 	chainId: number,
 	signer: ethers.Signer,
 ): Promise<string> {
-	// Import here to avoid circular dependency
-	const { getKnownUSDCDomain } = await import("./usdc-config.js");
 	const domain = getKnownUSDCDomain(tokenAddress, chainId);
 
 	const signature = await signer.signTypedData(
@@ -225,7 +224,6 @@ export async function signTransferAuthorizationWithProvider(
 	signer: ethers.Signer,
 	provider: ethers.Provider,
 ): Promise<string> {
-	const { getCachedUSDCDomain } = await import("./usdc-config.js");
 	const domain = await getCachedUSDCDomain(tokenAddress, chainId, provider);
 
 	const signature = await signer.signTypedData(
@@ -254,7 +252,6 @@ export async function verifyTransferAuthorization(
 	tokenAddress: string,
 	chainId: number,
 ): Promise<string> {
-	const { getKnownUSDCDomain } = await import("./usdc-config.js");
 	const domain = getKnownUSDCDomain(tokenAddress, chainId);
 
 	const digest = ethers.TypedDataEncoder.hash(
@@ -286,7 +283,6 @@ export async function verifyTransferAuthorizationWithProvider(
 	chainId: number,
 	provider: ethers.Provider,
 ): Promise<string> {
-	const { getCachedUSDCDomain } = await import("./usdc-config.js");
 	const domain = await getCachedUSDCDomain(tokenAddress, chainId, provider);
 
 	const digest = ethers.TypedDataEncoder.hash(

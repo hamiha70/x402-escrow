@@ -21,7 +21,7 @@ import {
 	signTransferAuthorizationWithProvider,
 	paymentIntentToTransferAuth
 } from "../../shared/eip712.js";
-import type { PaymentPayload, X402PaymentIntent } from "../../shared/types.js";
+import type { PaymentPayload, PaymentIntent } from "../../shared/types.js";
 
 dotenv.config();
 
@@ -57,7 +57,7 @@ describe("E2E x402-exact Baseline Test", () => {
 	});
 
 	it("should complete full x402-exact payment flow", async function() {
-		this.timeout(30000); // 30s timeout for on-chain settlement
+		this.timeout(60000); // 60s timeout for on-chain settlement (can be slow on testnets)
 
 		// Step 1: Get initial balances
 		buyerBalanceBefore = await usdcContract.balanceOf(buyerWallet.address);
@@ -86,7 +86,7 @@ describe("E2E x402-exact Baseline Test", () => {
 		const nonce = generateNonce();
 		const expiry = Math.floor(Date.now() / 1000) + 300;
 
-		const intent: X402PaymentIntent = {
+		const intent: PaymentIntent = {
 			seller: SELLER_ADDRESS!,
 			buyer: buyerWallet.address,
 			amount: PAYMENT_AMOUNT_RAW,
