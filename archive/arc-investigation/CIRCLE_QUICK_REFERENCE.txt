@@ -1,0 +1,260 @@
+================================================================================
+CIRCLE SUPPORT TICKET - QUICK REFERENCE CARD
+================================================================================
+
+PROJECT: x402 Payment Protocol (ETHGlobal Bangkok)
+DEVELOPER: @hamiha70
+DATE: November 22, 2024
+DEADLINE: November 24, 2024
+
+================================================================================
+THE TWO ISSUES
+================================================================================
+
+ISSUE #1: EIP-3009 Signature Validation Fails ❌
+- Error: "FiatTokenV2: invalid signature"
+- Cause: EIP-712 domain separator mismatch
+- Impact: Cannot use gasless transfers on Arc
+
+ISSUE #2: Contract Deployment Timeouts ❌
+- Both QuickNode and public RPC timeout
+- Read ops work, write ops fail
+- Impact: Cannot deploy test contracts
+
+================================================================================
+ARC TESTNET CONTRACT DETAILS
+================================================================================
+
+USDC Proxy:         0x3600000000000000000000000000000000000000
+USDC Implementation: 0x3910B7cbb3341f1F4bF4cEB66e4A2C8f204FE2b8
+Chain ID:           1243
+Explorer:           https://explorer.arc-testnet.circlechain.xyz
+
+Contract Values:
+  name():             "USDC"
+  version():          "2"
+  decimals():         6
+  DOMAIN_SEPARATOR(): 0x361191522483d32a83e70ae7183b4b9629442c13a78bc9921d6f707911c8c6b0
+
+================================================================================
+THE DOMAIN MISMATCH
+================================================================================
+
+Our Calculation (standard EIP-712):
+  {
+    name: "USDC",
+    version: "2",
+    chainId: 1243,
+    verifyingContract: "0x3600000000000000000000000000000000000000"
+  }
+  Result: 0x94e71d8b08285b2ec4c4f03b6112a4f27c3298282ff3528528bfa907be5c4b37
+
+Actual On-Chain:
+  0x361191522483d32a83e70ae7183b4b9629442c13a78bc9921d6f707911c8c6b0
+
+❌ MISMATCH → Signature validation fails
+
+================================================================================
+WHAT WORKS ✅
+================================================================================
+
+✓ Standard transfer():                 await usdc.transfer(to, amount)
+✓ Native USDC transfers (gas token):   await wallet.sendTransaction({...})
+✓ Read operations:                     balanceOf(), name(), symbol(), etc.
+✓ Test balances:                       Buyer: 10.02 USDC, Seller: 0.01 USDC
+
+================================================================================
+MULTI-CHAIN COMPARISON
+================================================================================
+
+Chain               Chain ID   EIP-3009    Standard Transfer
+------------------------------------------------------------
+Base Sepolia        84532      ✅ Works    ✅ Works
+Polygon Amoy        80002      ✅ Works    ✅ Works
+Arbitrum Sepolia    421614     ✅ Works    ✅ Works
+Optimism Sepolia    11155420   ✅ Works    ✅ Works
+Arc Testnet         1243       ❌ FAILS    ✅ Works
+
+Same code, only Arc fails!
+
+================================================================================
+WHAT WE TRIED
+================================================================================
+
+✗ Tested 10,000+ domain combinations:
+  - chainId: 0-10000
+  - verifyingContract: proxy vs implementation
+  - name: "USDC", "USD Coin", "FiatTokenV2_2"
+  - version: "1", "2", ""
+  - With/without salt field
+  → None matched on-chain domain
+
+✗ ERC-5267 eip712Domain() call → Not implemented
+
+✓ Verified function exists in bytecode (selector 0xe3ee160e)
+
+================================================================================
+QUESTIONS FOR CIRCLE
+================================================================================
+
+1. What are the correct EIP-712 domain parameters for Arc USDC?
+   → Is the precompile using non-standard parameters?
+
+2. Is EIP-3009 fully supported on Arc's native USDC?
+   → Function exists but signature verification fails
+
+3. How can we query the actual domain?
+   → ERC-5267 not implemented, any Arc-specific method?
+
+4. Is Arc Testnet RPC operational?
+   → Deployments timeout, is there maintenance?
+
+5. Recommended RPC endpoints?
+   → QuickNode vs public, any special config?
+
+================================================================================
+RPC ENDPOINTS TESTED
+================================================================================
+
+QuickNode (paid):    https://proud-xxx.arc-testnet.quiknode.pro/xxx/
+                     → Timeout on deployments ❌
+
+Public:              https://rpc-testnet.arc.network
+                     → Timeout on deployments ❌
+
+Both: Read ops ✓, Write ops ✗
+
+================================================================================
+TEST WALLETS (Arc Testnet)
+================================================================================
+
+Buyer:       0x7c434B9927A3b08Fe46bb3dB2DC37bb51E6d3eB9
+Seller:      0x21cD0a6e5982BB2C51Eb1C12FBe1D6aF60FF3A6A
+Facilitator: 0xB6A9eaE61290d3A891AB6D5efFEB3e98035BF064
+
+================================================================================
+WORKING PROOF (Base Sepolia)
+================================================================================
+
+USDC:    0x036CbD53842c5426634e7929541eC2318f3dCF7e
+Vault:   0x9ae3B8bba411C236d5aAC6c7548Ad6D389c3d833
+Domain:  0x324eea0d38bb34f7b0b4ddae217cc90e4ea4847061cfc8c8fd5dd1ca3f1a3a2a
+Last TX: 0xf841bb9fe9f1db4ebc7a787055fc286ce23b704d40c417abacbeacd3081d6cb6
+Explorer: https://sepolia.basescan.org/address/0x9ae3B8bba411C236d5aAC6c7548Ad6D389c3d833
+
+Same code, same signing logic → Works perfectly!
+
+================================================================================
+REPRODUCIBLE TEST CODE
+================================================================================
+
+const domain = {
+  name: await usdc.name(),        // "USDC"
+  version: await usdc.version(),  // "2"
+  chainId: 1243,
+  verifyingContract: "0x3600000000000000000000000000000000000000"
+};
+
+const transferAuth = {
+  from: buyer,
+  to: seller,
+  value: ethers.parseUnits("1", 6),
+  validAfter: 0,
+  validBefore: Math.floor(Date.now() / 1000) + 3600,
+  nonce: ethers.hexlify(ethers.randomBytes(32))
+};
+
+const signature = await signer.signTypedData(domain, types, transferAuth);
+const { v, r, s } = ethers.Signature.from(signature);
+
+const tx = await usdc.transferWithAuthorization(
+  transferAuth.from,
+  transferAuth.to,
+  transferAuth.value,
+  transferAuth.validAfter,
+  transferAuth.validBefore,
+  transferAuth.nonce,
+  v, r, s
+);
+// ❌ Reverts: "FiatTokenV2: invalid signature"
+
+================================================================================
+ENVIRONMENT
+================================================================================
+
+Tools:    ethers.js v6, Foundry, Node.js v20
+Explorer: https://explorer.arc-testnet.circlechain.xyz
+Deadline: November 24, 2024 (ETHGlobal Bangkok)
+
+================================================================================
+DOCUMENTS AVAILABLE
+================================================================================
+
+1. ARC_EIP3009_ISSUE.md           - Technical summary
+2. ARC_USDC_ANALYSIS.md           - Deep investigation
+3. CIRCLE_SUPPORT_TICKET.md       - Full support request (460 lines)
+4. CIRCLE_DISCORD_MESSAGE.txt     - Short Discord version (90 lines)
+5. CIRCLE_TICKET_CHECKLIST.md     - This checklist + strategy
+6. demo-results-exact-arc.json    - Failed demo log
+7. demo-results-exact-base-sepolia.json - Working demo log
+
+================================================================================
+RECOMMENDED APPROACH
+================================================================================
+
+1. START: Post CIRCLE_DISCORD_MESSAGE.txt to Discord
+2. IF ASKED: Share CIRCLE_SUPPORT_TICKET.md for full details
+3. IF NEEDED: Create minimal reproduction script
+4. NO GITHUB: Unless Circle specifically requests it
+
+Tone: Collaborative, show we've done homework, ask specific questions
+
+================================================================================
+WORKAROUND (IF NO FIX)
+================================================================================
+
+Fall back to standard ERC-20 for Arc only:
+
+if (chainId === 1243) {
+  // Arc: use approve + transferFrom (requires 2 txs)
+  await usdc.transferFrom(buyer, seller, amount);
+} else {
+  // Other chains: use EIP-3009 (gasless, 1 signature)
+  await usdc.transferWithAuthorization(...);
+}
+
+Trade-offs:
+✅ Works, production-ready
+❌ Arc loses gasless benefit
+❌ Extra approval step
+
+================================================================================
+WHY THIS MATTERS
+================================================================================
+
+For Arc:
+- EIP-3009 is a flagship USDC feature
+- If broken, developers will avoid Arc
+- Our project could showcase Arc's innovation
+
+For Us:
+- Need multi-chain demo for ETHGlobal Bangkok
+- Arc's USDC-as-gas is perfect fit for our use case
+- But can't showcase if signatures don't validate
+
+================================================================================
+READY TO SUBMIT? ✅
+================================================================================
+
+You have:
+✅ Clear issue description
+✅ Technical details (addresses, chain ID, domain values)
+✅ Proof of what works (standard transfers, other chains)
+✅ Reproducible test code
+✅ 10,000+ combinations tested
+✅ Specific questions for Circle
+✅ Timeline context (hackathon deadline)
+
+You're ready! Good luck! 🚀
+
+================================================================================

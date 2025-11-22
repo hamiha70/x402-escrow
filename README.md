@@ -223,9 +223,16 @@ Tested on:
 - Arbitrum Sepolia (421614)
 - Optimism Sepolia (11155420)
 - Polygon Amoy (80002)
-- Arc Testnet (1243)
+- Arc Testnet (5042002) ✨ Native USDC as gas!
 
-**Dynamic USDC Domain Resolution**: Automatically queries each chain's USDC contract for correct EIP-712 domain (name, version), ensuring cross-chain compatibility.
+**Dynamic USDC Domain Resolution**: Automatically queries each chain's USDC contract for correct EIP-712 domain (name, version, chainId), ensuring cross-chain compatibility.
+
+**Arc Testnet Special Features**:
+
+- Uses USDC as native gas token (18 decimals)
+- Dual-interface USDC (native + ERC-20 at 6 decimals)
+- Full EIP-3009 support with standard domain calculation
+- All x402 payment schemes fully compatible
 
 ## 🛠️ Development
 

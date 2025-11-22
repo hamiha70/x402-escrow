@@ -154,10 +154,13 @@ function createChainEndpoint(chain: ChainConfig) {
 
 			logger.info(`402 Payment Required for: ${canonicalResource} on ${chain.name} (scheme: ${schemeParam})`);
 
-			return res.status(402).json({
-				error: "Payment required",
-				PaymentRequirements: [requirements],
-			});
+			return res.status(402)
+				.header("WWW-Authenticate", "X-Payment")
+				.header("X-Payment", JSON.stringify(requirements))
+				.json({
+					error: "Payment required",
+					PaymentRequirements: [requirements],
+				});
 		}
 
 		// Parse payment payload
