@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-11-22T06:04:18.031Z",
+  "network": "base-sepolia",
+  "totalDuration": 13481,
+  "phases": [
+    {
+      "phase": "Phase 1",
+      "startTime": 1763791459904,
+      "endTime": 1763791459975,
+      "duration": 71,
+      "details": {
+        "status": 402,
+        "paymentRequired": true
+      }
+    },
+    {
+      "phase": "Phase 2",
+      "startTime": 1763791459976,
+      "endTime": 1763791462134,
+      "duration": 2158,
+      "details": {
+        "nonce": "0x344ffdf14997e2ffb12d4b1ef4d86bac3abbca9c0d5ebbb32e41240b00280d06",
+        "x402Duration": 20,
+        "eip3009Duration": 2071,
+        "totalSigningTime": 2091
+      }
+    },
+    {
+      "phase": "Phase 3",
+      "startTime": 1763791462134,
+      "endTime": 1763791469688,
+      "duration": 7554,
+      "details": {
+        "httpStatus": 200,
+        "settlementDuration": 7554
+      }
+    },
+    {
+      "phase": "Phase 4",
+      "startTime": 1763791469689,
+      "endTime": 1763791469690,
+      "duration": 1
+    },
+    {
+      "phase": "Phase 5",
+      "startTime": 1763791469690,
+      "endTime": 1763791471420,
+      "duration": 1730
+    }
+  ],
+  "success": true,
+  "balances": {
+    "before": {
+      "buyer": "9.92",
+      "seller": "0.08"
+    },
+    "after": {
+      "buyer": "9.92",
+      "seller": "0.09"
+    }
+  },
+  "transaction": {
+    "hash": "0x23a48c676715ac375890532cff0e3c55abec95ef922d560a985642e2c27b7b0c",
+    "explorerUrl": "https://explorer.example.com/tx/0x23a48c676715ac375890532cff0e3c55abec95ef922d560a985642e2c27b7b0c",
+    "blockNumber": 34011591,
+    "gasUsed": "85716"
+  }
+}

@@ -20,9 +20,15 @@ import type {
 	PaymentPayload,
 	PaymentContext,
 	PaymentResponse,
+	PaymentRequirements,
 } from "../shared/types.js";
 import { processExactPayment } from "./services/ExactSettlement.js";
 import type { ExactSettlementConfig } from "./services/ExactSettlement.js";
+import { processEscrowDeferredPayment } from "./services/EscrowDeferredValidation.js";
+import type { EscrowDeferredConfig } from "./services/EscrowDeferredValidation.js";
+import { processAllPending } from "./services/BatchSettler.js";
+import type { BatchSettlerConfig } from "./services/BatchSettler.js";
+import queue from "./services/SettlementQueue.js";
 
 dotenv.config();
 
@@ -80,8 +86,21 @@ function getChainConfig(chainId: number) {
 	return config;
 }
 
-// Create settlement config
+// Create settlement config (for exact scheme)
 const settlementConfig: ExactSettlementConfig = {
+	getProvider,
+	getWallet,
+	getChainConfig,
+};
+
+// Create validation config (for escrow-deferred scheme)
+const validationConfig: EscrowDeferredConfig = {
+	getProvider,
+	getChainConfig,
+};
+
+// Create batch settler config
+const batchSettlerConfig: BatchSettlerConfig = {
 	getProvider,
 	getWallet,
 	getChainConfig,
@@ -137,9 +156,126 @@ app.post("/settle", async (req, res) => {
 });
 
 /**
+ * POST /validate-intent
+ * 
+ * Validation endpoint for x402-escrow-deferred scheme
+ * Validates payment intent and queues for batch settlement
+ */
+app.post("/validate-intent", async (req, res) => {
+	try {
+		const { requirements, payload } = req.body as {
+			requirements: PaymentRequirements;
+			payload: PaymentPayload;
+		};
+
+		// Validate payload structure
+		if (!requirements || !payload || !payload.data || !payload.data.intent || !payload.data.x402Signature) {
+			return res.status(400).json({
+				error: "Invalid request structure (requires requirements and payload)",
+			});
+		}
+
+		// Check for vault address
+		if (!requirements.vault) {
+			return res.status(400).json({
+				error: "Vault address required for escrow-deferred scheme",
+			});
+		}
+
+		logger.info(`Received validation request for resource: ${payload.data.intent.resource}`);
+
+		// Create payment context
+		const context: PaymentContext = {
+			scheme: "x402-escrow-deferred",
+			chainId: payload.data.intent.chainId,
+			chainSlug: requirements.network,
+			token: payload.data.intent.token,
+			vault: requirements.vault,
+			seller: payload.data.intent.seller,
+			resource: payload.data.intent.resource,
+			mode: "deferred",
+		};
+
+		// Process payment (validate + queue)
+		const paymentResponse = await processEscrowDeferredPayment(
+			payload,
+			requirements,
+			context,
+			validationConfig
+		);
+
+		if (paymentResponse.status === "failed") {
+			logger.warn(`Validation failed: ${paymentResponse.error}`);
+			return res.status(400).json(paymentResponse);
+		}
+
+		logger.success(`Intent validated and queued: ${paymentResponse.intentNonce}`);
+		return res.status(200).json(paymentResponse);
+	} catch (error: any) {
+		logger.error("Unexpected error", error);
+		return res.status(500).json({
+			error: "Internal server error",
+			details: error.message,
+		});
+	}
+});
+
+/**
+ * POST /settle-batch
+ * 
+ * Trigger batch settlement of pending escrow-deferred intents
+ */
+app.post("/settle-batch", async (req, res) => {
+	try {
+		logger.info("Batch settlement triggered");
+		
+		const result = await processAllPending(batchSettlerConfig);
+		
+		return res.json({
+			success: true,
+			batchesProcessed: result.totalBatches,
+			intentsSettled: result.totalSettled,
+			errors: result.errors,
+			queueStats: queue.getStats(),
+		});
+	} catch (error: any) {
+		logger.error("Batch settlement error", error);
+		return res.status(500).json({
+			error: "Batch settlement failed",
+			details: error.message,
+		});
+	}
+});
+
+/**
+ * GET /queue
+ * 
+ * Get queue statistics
+ */
+app.get("/queue", (req, res) => {
+	const stats = queue.getStats();
+	const pending = queue.getPending();
+	
+	return res.json({
+		stats,
+		pending: pending.map(r => ({
+			id: r.id,
+			buyer: r.buyer,
+			seller: r.seller,
+			amount: r.amount,
+			vault: r.vault,
+			chainId: r.chainId,
+			createdAt: r.createdAt,
+		})),
+	});
+});
+
+/**
  * GET /health
  */
 app.get("/health", (req, res) => {
+	const stats = queue.getStats();
+	
 	res.json({
 		status: "healthy",
 		facilitator: FACILITATOR_ADDRESS,
@@ -147,6 +283,13 @@ app.get("/health", (req, res) => {
 			chainId: parseInt(id),
 			name: CHAIN_CONFIG[parseInt(id)].name,
 		})),
+		endpoints: {
+			settle: "/settle (x402-exact)",
+			validateIntent: "/validate-intent (x402-escrow-deferred)",
+			settleBatch: "/settle-batch (trigger batch settlement)",
+			queue: "/queue (view queue status)",
+		},
+		queue: stats,
 	});
 });
 
@@ -162,7 +305,9 @@ app.listen(PORT, () => {
 		}
 	});
 	logger.info(`Facilitator address: ${FACILITATOR_ADDRESS}`);
-	logger.info(`Settlement mode: SYNCHRONOUS (EIP-3009 transferWithAuthorization)`);
+	logger.info(`Endpoints:`);
+	logger.info(`  • POST /settle - x402-exact (synchronous EIP-3009)`);
+	logger.info(`  • POST /validate-intent - x402-escrow-deferred (deferred batch settlement)`);
 	logger.info(`✅ NO APPROVAL NEEDED - gasless for buyers!`);
 });
 
