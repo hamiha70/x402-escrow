@@ -1,0 +1,47 @@
+{
+	"name": "x402-escrow",
+	"version": "1.0.0",
+	"description": "Reference implementation for x402 payment standard: exact and escrow-deferred schemes",
+	"type": "module",
+	"main": "index.js",
+	"scripts": {
+		"build": "forge build",
+		"test": "forge test",
+		"test:verbose": "forge test -vvv",
+		"test:gas": "forge test --gas-report",
+		"test:fork:base": "forge test --fork-url $BASE_SEPOLIA_RPC -vvv",
+		"deploy:base-sepolia": "forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast --verify",
+		"facilitator": "tsx facilitator/server.ts",
+		"seller": "tsx seller/server.ts",
+		"buyer": "tsx buyer/agent.ts",
+		"settle": "tsx settlement/worker.ts",
+		"test:e2e": "mocha --require tsx/cjs --extension ts 'test/e2e/**/*.test.ts'"
+	},
+	"keywords": [
+		"x402",
+		"payment",
+		"eip-712",
+		"eip-3009",
+		"foundry",
+		"micropayments"
+	],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/chai": "^4.3.11",
+		"@types/express": "^4.17.21",
+		"@types/mocha": "^10.0.6",
+		"@types/node": "^20.10.5",
+		"chai": "^4.3.10",
+		"mocha": "^10.2.0",
+		"tsx": "^4.7.0",
+		"typescript": "^5.3.3"
+	},
+	"dependencies": {
+		"axios": "^1.6.2",
+		"dotenv": "^16.3.1",
+		"ethers": "^6.9.0",
+		"express": "^4.18.2"
+	}
+}
+

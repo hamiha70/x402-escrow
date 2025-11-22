@@ -64,3 +64,12 @@ bun.lockb
 # Submission artifacts
 submission/
 
+# Foundry
+cache/
+broadcast/
+lib/
+
+# Settlement queue
+pending_intents.json
+settled_intents.json
+
