@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+!deployed.env  # Track deployment addresses (public, safe to commit)
 
 # Dependencies
 node_modules/

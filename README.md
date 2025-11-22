@@ -38,6 +38,14 @@ Three progressive implementations of x402 Payment Protocol, each solving differe
 
 ## 🚀 Quick Start
 
+### File Structure
+
+```
+.env              # Runtime config (private keys, RPCs, API keys) - NOT in git
+deployed.env      # Deployed contract addresses - IN git for reference
+example.env       # Template for .env - IN git
+```
+
 ### Run the Reference Implementation (x402-exact)
 
 ```bash
@@ -47,6 +55,9 @@ npm install
 # 2. Setup environment
 cp example.env .env
 # Edit .env with your wallets and RPCs
+
+# 3. (Optional) Merge deployed contract addresses
+cat deployed.env >> .env
 
 # 3. Fund wallets
 npm run fund
