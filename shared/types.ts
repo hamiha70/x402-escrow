@@ -117,8 +117,8 @@ export interface EIP712Domain {
  */
 export const PAYMENT_INTENT_TYPES = {
 	PaymentIntent: [
+		{ name: "buyer", type: "address" },   // CRITICAL: BUYER FIRST to match Vault.sol!
 		{ name: "seller", type: "address" },
-		{ name: "buyer", type: "address" },
 		{ name: "amount", type: "uint256" },
 		{ name: "token", type: "address" },
 		{ name: "nonce", type: "bytes32" },

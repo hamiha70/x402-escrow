@@ -22,12 +22,14 @@
 		"demo:exact": "tsx scripts/demo-exact.ts",
 		"demo:exact:full": "bash scripts/run_demo_exact.sh",
 		"demo:escrow-deferred": "tsx scripts/demo-escrow-deferred.ts",
-		"test:e2e": "mocha --require tsx/cjs --extension ts 'test/e2e/**/*.test.ts'",
-		"test:e2e-mock": "mocha --require tsx/cjs --extension ts 'test/e2e-mock/**/*.test.ts' --timeout 10000",
-		"test:baseline": "mocha --require tsx/cjs --extension ts 'test/**/*.test.ts' --timeout 30000",
-		"test:unit": "mocha --require tsx/cjs --extension ts 'test/unit/**/*.test.ts' --timeout 10000",
-		"test:all-mock": "npm run test:unit && npm run test:e2e-mock",
-		"test:all-real": "npm run test:unit && npm run test:e2e"
+    "test:canary": "mocha --require tsx/cjs --extension ts 'test/canary/**/*.test.ts' --timeout 5000",
+    "test:unit": "mocha --require tsx/cjs --extension ts 'test/unit/**/*.test.ts' --timeout 10000",
+    "test:e2e-mock": "mocha --require tsx/cjs --extension ts 'test/e2e-mock/**/*.test.ts' --timeout 10000",
+    "test:e2e-real": "mocha --require tsx/cjs --extension ts 'test/e2e/**/*.test.ts' --timeout 60000",
+    "test:baseline": "mocha --require tsx/cjs --extension ts 'test/**/*.test.ts' --timeout 30000",
+    "test:all-mock": "npm run test:canary && npm run test:unit && npm run test:e2e-mock",
+    "test:all-real": "npm run test:canary && npm run test:unit && npm run test:e2e-real",
+    "test:quick": "npm run test:canary"
 	},
 	"keywords": [
 		"x402",

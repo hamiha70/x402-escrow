@@ -86,19 +86,9 @@ export async function validateEscrowDeferredIntent(
 			verifyingContract: context.vault,
 		};
 
-		// Verify signature
-		const PAYMENT_INTENT_TYPES = {
-			PaymentIntent: [
-				{ name: "seller", type: "address" },
-				{ name: "buyer", type: "address" },
-				{ name: "amount", type: "uint256" },
-				{ name: "token", type: "address" },
-				{ name: "nonce", type: "bytes32" },
-				{ name: "expiry", type: "uint256" },
-				{ name: "resource", type: "string" },
-				{ name: "chainId", type: "uint256" },
-			],
-		};
+		// IMPORTANT: Import PAYMENT_INTENT_TYPES from shared/types.ts instead of hardcoding!
+		// Using the shared definition ensures consistency across buyer, facilitator, and Vault.sol
+		const { PAYMENT_INTENT_TYPES } = await import("../../shared/types.js");
 
 		const digest = ethers.TypedDataEncoder.hash(vaultDomain, PAYMENT_INTENT_TYPES, intent);
 		const recoveredAddress = ethers.recoverAddress(digest, x402Signature);
