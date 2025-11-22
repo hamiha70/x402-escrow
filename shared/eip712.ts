@@ -112,6 +112,9 @@ export function paymentIntentToTransferAuth(
 /**
  * Sign EIP-3009 TransferWithAuthorization
  * 
+ * NOTE: This function uses a synchronous domain lookup. For best results,
+ * use signTransferAuthorizationWithProvider() which queries the contract.
+ * 
  * @param auth The transfer authorization parameters
  * @param tokenAddress The USDC token address (verifying contract)
  * @param chainId The chain ID
@@ -124,12 +127,40 @@ export async function signTransferAuthorization(
 	chainId: number,
 	signer: ethers.Signer,
 ): Promise<string> {
-	const domain: EIP712Domain = {
-		name: "USD Coin",  // USDC's EIP-712 domain name
-		version: "2",      // USDC version
-		chainId,
-		verifyingContract: tokenAddress,
-	};
+	// Import here to avoid circular dependency
+	const { getKnownUSDCDomain } = await import("./usdc-config.js");
+	const domain = getKnownUSDCDomain(tokenAddress, chainId);
+
+	const signature = await signer.signTypedData(
+		domain,
+		TRANSFER_WITH_AUTHORIZATION_TYPES,
+		auth,
+	);
+	return signature;
+}
+
+/**
+ * Sign EIP-3009 TransferWithAuthorization (with contract query)
+ * 
+ * This is the preferred method as it queries the USDC contract for its
+ * actual EIP-712 domain, ensuring cross-chain compatibility.
+ * 
+ * @param auth The transfer authorization parameters
+ * @param tokenAddress The USDC token address (verifying contract)
+ * @param chainId The chain ID
+ * @param signer The ethers signer (buyer's wallet)
+ * @param provider The ethers provider for querying the contract
+ * @returns The signature (hex string)
+ */
+export async function signTransferAuthorizationWithProvider(
+	auth: TransferAuthorization,
+	tokenAddress: string,
+	chainId: number,
+	signer: ethers.Signer,
+	provider: ethers.Provider,
+): Promise<string> {
+	const { getCachedUSDCDomain } = await import("./usdc-config.js");
+	const domain = await getCachedUSDCDomain(tokenAddress, chainId, provider);
 
 	const signature = await signer.signTypedData(
 		domain,
@@ -142,24 +173,55 @@ export async function signTransferAuthorization(
 /**
  * Verify EIP-3009 TransferWithAuthorization signature
  * 
+ * NOTE: This function uses a synchronous domain lookup. For best results,
+ * use verifyTransferAuthorizationWithProvider() which queries the contract.
+ * 
  * @param auth The transfer authorization
  * @param signature The signature to verify
  * @param tokenAddress The USDC token address
  * @param chainId The chain ID
  * @returns The recovered signer address
  */
-export function verifyTransferAuthorization(
+export async function verifyTransferAuthorization(
 	auth: TransferAuthorization,
 	signature: string,
 	tokenAddress: string,
 	chainId: number,
-): string {
-	const domain: EIP712Domain = {
-		name: "USD Coin",
-		version: "2",
-		chainId,
-		verifyingContract: tokenAddress,
-	};
+): Promise<string> {
+	const { getKnownUSDCDomain } = await import("./usdc-config.js");
+	const domain = getKnownUSDCDomain(tokenAddress, chainId);
+
+	const digest = ethers.TypedDataEncoder.hash(
+		domain,
+		TRANSFER_WITH_AUTHORIZATION_TYPES,
+		auth,
+	);
+	const recoveredAddress = ethers.recoverAddress(digest, signature);
+	return recoveredAddress;
+}
+
+/**
+ * Verify EIP-3009 TransferWithAuthorization signature (with contract query)
+ * 
+ * This is the preferred method as it queries the USDC contract for its
+ * actual EIP-712 domain, ensuring cross-chain compatibility.
+ * 
+ * @param auth The transfer authorization
+ * @param signature The signature to verify
+ * @param tokenAddress The USDC token address
+ * @param chainId The chain ID
+ * @param provider The ethers provider for querying the contract
+ * @returns The recovered signer address
+ */
+export async function verifyTransferAuthorizationWithProvider(
+	auth: TransferAuthorization,
+	signature: string,
+	tokenAddress: string,
+	chainId: number,
+	provider: ethers.Provider,
+): Promise<string> {
+	const { getCachedUSDCDomain } = await import("./usdc-config.js");
+	const domain = await getCachedUSDCDomain(tokenAddress, chainId, provider);
 
 	const digest = ethers.TypedDataEncoder.hash(
 		domain,

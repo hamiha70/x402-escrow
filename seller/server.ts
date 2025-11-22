@@ -34,7 +34,12 @@ const SELLER_ADDRESS = process.env.SELLER_WALLET_ADDRESS;
 const FACILITATOR_URL = process.env.FACILITATOR_URL || "http://localhost:4023";
 const USDC_BASE_SEPOLIA = process.env.USDC_BASE_SEPOLIA;
 const CHAIN_ID = 84532; // Base Sepolia
-const PAYMENT_AMOUNT = process.env.PAYMENT_AMOUNT || "10000"; // 0.01 USDC (6 decimals)
+const USDC_DECIMALS = 6;
+
+// Payment amount from env (human-readable, e.g. "0.01")
+const PAYMENT_AMOUNT_DISPLAY = process.env.PAYMENT_AMOUNT || "0.01";
+// Convert to raw units for on-chain comparison (e.g. "10000")
+const PAYMENT_AMOUNT_RAW = String(Number(PAYMENT_AMOUNT_DISPLAY) * 10 ** USDC_DECIMALS);
 
 if (!SELLER_ADDRESS || !USDC_BASE_SEPOLIA) {
 	throw new Error("Missing required environment variables");
@@ -61,17 +66,17 @@ const PREMIUM_CONTENT = {
  */
 function generatePaymentRequirements(resource: string): PaymentRequirements {
 	return {
-		network: "base-sepolia",
-		token: "USDC",
-		tokenAddress: USDC_BASE_SEPOLIA!,
-		amount: "0.01",
-		decimals: 6,
-		seller: SELLER_ADDRESS!,
-		resource,
-		facilitator: `${FACILITATOR_URL}/settle`,
-		chainId: CHAIN_ID,
-		schemes: ["intent"],
-		expiresAt: Math.floor(Date.now() / 1000) + 300, // 5 minutes
+	network: "base-sepolia",
+	token: "USDC",
+	tokenAddress: USDC_BASE_SEPOLIA!,
+	amount: PAYMENT_AMOUNT_DISPLAY, // Human-readable (e.g. "0.01")
+	decimals: USDC_DECIMALS,
+	seller: SELLER_ADDRESS!,
+	resource,
+	facilitator: `${FACILITATOR_URL}/settle`,
+	chainId: CHAIN_ID,
+	schemes: ["intent"],
+	expiresAt: Math.floor(Date.now() / 1000) + 300, // 5 minutes
 	};
 }
 
@@ -152,11 +157,11 @@ app.get("/api/content/premium", async (req, res) => {
 		});
 	}
 
-	// Validate amount
-	if (payload.data.intent.amount !== PAYMENT_AMOUNT) {
-		logger.warn(`Amount mismatch: expected ${PAYMENT_AMOUNT}, got ${payload.data.intent.amount}`);
+	// Validate amount (compare raw units)
+	if (payload.data.intent.amount !== PAYMENT_AMOUNT_RAW) {
+		logger.warn(`Amount mismatch: expected ${PAYMENT_AMOUNT_RAW} (${PAYMENT_AMOUNT_DISPLAY} USDC), got ${payload.data.intent.amount}`);
 		return res.status(400).json({
-			error: `Invalid payment amount. Expected ${PAYMENT_AMOUNT}`,
+			error: `Invalid payment amount. Expected ${PAYMENT_AMOUNT_DISPLAY} USDC`,
 		});
 	}
 
@@ -216,7 +221,7 @@ app.listen(PORT, () => {
 	logger.success(`Seller server running on port ${PORT}`);
 	logger.info(`Seller address: ${SELLER_ADDRESS}`);
 	logger.info(`Facilitator: ${FACILITATOR_URL}`);
-	logger.info(`Payment amount: ${PAYMENT_AMOUNT} (${Number(PAYMENT_AMOUNT) / 1e6} USDC)`);
+	logger.info(`Payment amount: ${PAYMENT_AMOUNT_DISPLAY} USDC (${PAYMENT_AMOUNT_RAW} raw units)`);
 	logger.info(`Protected endpoint: GET /api/content/premium`);
 });
 

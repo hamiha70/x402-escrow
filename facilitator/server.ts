@@ -16,7 +16,7 @@ import express from "express";
 import { ethers } from "ethers";
 import dotenv from "dotenv";
 import { createLogger } from "../shared/logger.js";
-import { verifyPaymentIntent, getEIP712Domain } from "../shared/eip712.js";
+import { verifyTransferAuthorizationWithProvider, paymentIntentToTransferAuth } from "../shared/eip712.js";
 import type {
 	PaymentPayload,
 	PaymentResponse,
@@ -58,11 +58,11 @@ const usedNonces = new Set<string>();
 /**
  * Verify payment intent signature and fields
  */
-function validatePaymentIntent(payload: PaymentPayload): {
+async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 	valid: boolean;
 	error?: string;
 	buyer?: string;
-} {
+}> {
 	const { intent, signature } = payload.data;
 
 	// Check expiry
@@ -86,13 +86,21 @@ function validatePaymentIntent(payload: PaymentPayload): {
 		return { valid: false, error: "Nonce already used (replay attack prevented)" };
 	}
 
-	// Verify EIP-712 signature
-	const domain = getEIP712Domain(CHAIN_ID, FACILITATOR_ADDRESS!);
+	// Verify EIP-3009 signature
+	// Convert intent to TransferAuthorization format for verification
+	const transferAuth = paymentIntentToTransferAuth(intent);
 	let recoveredAddress: string;
 	try {
-		recoveredAddress = verifyPaymentIntent(intent, signature, domain);
+		// Query USDC contract for correct EIP-712 domain (cross-chain compatible)
+		recoveredAddress = await verifyTransferAuthorizationWithProvider(
+			transferAuth,
+			signature,
+			USDC_BASE_SEPOLIA!,
+			CHAIN_ID,
+			provider,
+		);
 	} catch (error) {
-		return { valid: false, error: "Invalid signature" };
+		return { valid: false, error: "Invalid EIP-3009 signature" };
 	}
 
 	// Check that signature matches buyer
@@ -202,7 +210,7 @@ app.post("/settle", async (req, res) => {
 		logger.info(`Received settlement request for resource: ${payload.data.intent.resource}`);
 
 		// Step 1: Validate intent
-		const validation = validatePaymentIntent(payload);
+		const validation = await validatePaymentIntent(payload);
 		if (!validation.valid) {
 			logger.warn(`Validation failed: ${validation.error}`);
 			return res.status(400).json({

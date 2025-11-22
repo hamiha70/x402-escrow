@@ -18,7 +18,7 @@ import { createLogger } from "../shared/logger.js";
 import {
 	generateNonce,
 	paymentIntentToTransferAuth,
-	signTransferAuthorization,
+	signTransferAuthorizationWithProvider,
 } from "../shared/eip712.js";
 import type {
 	PaymentRequirements,
@@ -100,11 +100,13 @@ async function createPaymentIntent(
 	const transferAuth = paymentIntentToTransferAuth(intent);
 	
 	logger.info("Signing EIP-3009 TransferWithAuthorization...");
-	const signature = await signTransferAuthorization(
+	logger.info("Querying USDC contract for EIP-712 domain...");
+	const signature = await signTransferAuthorizationWithProvider(
 		transferAuth,
 		requirements.tokenAddress,  // USDC address is the verifying contract
 		requirements.chainId,
 		buyerWallet,
+		provider,  // Query contract for correct domain
 	);
 	logger.success("Signed EIP-3009 authorization (NO APPROVAL NEEDED!)");
 
