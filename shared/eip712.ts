@@ -298,3 +298,63 @@ export async function verifyTransferAuthorizationWithProvider(
 	return recoveredAddress;
 }
 
+/**
+ * Get vault EIP-712 domain for escrow-deferred scheme
+ * 
+ * @param vaultAddress The vault contract address
+ * @param chainId The chain ID
+ * @param provider Provider to query vault for domain separator
+ * @returns EIP-712 domain for vault
+ */
+export async function getVaultDomain(
+	vaultAddress: string,
+	chainId: number,
+	provider: ethers.Provider,
+): Promise<EIP712Domain> {
+	// Query vault for DOMAIN_SEPARATOR to get exact domain parameters
+	const vaultABI = ["function DOMAIN_SEPARATOR() view returns (bytes32)"];
+	const vaultContract = new ethers.Contract(vaultAddress, vaultABI, provider);
+	
+	try {
+		const domainSeparator = await vaultContract.DOMAIN_SEPARATOR();
+		// For now, we'll construct domain from known vault structure
+		// In production, you might want to decode the domain separator
+	} catch (error) {
+		// Fallback to standard vault domain
+	}
+
+	// Standard vault domain structure (matches Vault.sol)
+	return {
+		name: "x402-Vault",
+		version: "1",
+		chainId,
+		verifyingContract: vaultAddress,
+	};
+}
+
+/**
+ * Sign payment intent with vault EIP-712 domain (for escrow-deferred)
+ * 
+ * @param intent The payment intent
+ * @param vaultAddress The vault contract address
+ * @param chainId The chain ID
+ * @param signer The ethers signer (buyer's wallet)
+ * @param provider Provider to query vault domain
+ * @returns The signature (hex string)
+ */
+export async function signPaymentIntentWithVaultDomain(
+	intent: PaymentIntent,
+	vaultAddress: string,
+	chainId: number,
+	signer: ethers.Signer,
+	provider: ethers.Provider,
+): Promise<string> {
+	const domain = await getVaultDomain(vaultAddress, chainId, provider);
+	const signature = await signer.signTypedData(
+		domain,
+		PAYMENT_INTENT_TYPES,
+		intent,
+	);
+	return signature;
+}
+

@@ -6,6 +6,42 @@
  */
 
 /**
+ * Payment scheme types
+ */
+export type PaymentScheme = "x402-exact" | "x402-escrow-deferred" | "x402-private-escrow-deferred";
+
+/**
+ * Payment context - carries scheme and chain information through the system
+ * 
+ * Used for attribution, logging, and routing decisions.
+ */
+export interface PaymentContext {
+	/** Payment scheme being used */
+	scheme: PaymentScheme;
+	
+	/** Chain ID */
+	chainId: number;
+	
+	/** Chain network slug (e.g., "base-sepolia") */
+	chainSlug: string;
+	
+	/** Token contract address (USDC) */
+	token: string;
+	
+	/** Vault contract address (for escrow schemes) */
+	vault?: string;
+	
+	/** Seller address */
+	seller: string;
+	
+	/** Canonical resource path (scheme-independent) */
+	resource: string;
+	
+	/** Settlement mode */
+	mode: "synchronous" | "deferred";
+}
+
+/**
  * Payment intent structure (EIP-712 signed data)
  * 
  * Core data structure that buyer signs to authorize payment.
@@ -144,13 +180,19 @@ export interface ValidationResult {
  */
 export interface PaymentResponse {
 	/** Payment scheme used */
-	scheme: "intent";
+	scheme: "intent" | "x402-escrow-deferred" | "x402-private-escrow-deferred";
 
-	/** Payment status (settled = completed on-chain) */
-	status: "settled" | "failed";
+	/** Payment status */
+	status: "settled" | "pending" | "failed";
 
-	/** Transaction hash (proof of settlement) */
+	/** Settlement mode */
+	mode?: "synchronous" | "deferred";
+
+	/** Transaction hash (proof of settlement, only for settled) */
 	txHash?: string;
+
+	/** Intent nonce (for pending/deferred payments) */
+	intentNonce?: string;
 
 	/** ISO timestamp when payment was settled */
 	settledAt?: string;
@@ -178,6 +220,9 @@ export interface PaymentResponse {
  * Reference: https://agentic-docs.polygon.technology/general/x402/how-it-works/
  */
 export interface PaymentRequirements {
+	/** Payment scheme (e.g., "intent" for exact, "x402-escrow-deferred") */
+	scheme?: string;
+
 	/** Network identifier (e.g., "base-sepolia", "polygon-amoy") */
 	network: string;
 
@@ -210,6 +255,15 @@ export interface PaymentRequirements {
 
 	/** Optional: Expiry timestamp */
 	expiresAt?: number;
+
+	/** Optional: Vault address (for escrow-deferred) */
+	vault?: string;
+
+	/** Optional: Escrow metadata (for escrow-deferred) */
+	escrow?: {
+		type: "vault-pool";
+		mode: "deferred";
+	};
 }
 
 /**

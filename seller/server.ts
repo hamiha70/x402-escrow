@@ -13,14 +13,14 @@
  */
 
 import express from "express";
-import axios from "axios";
 import dotenv from "dotenv";
 import { createLogger } from "../shared/logger.js";
 import type {
-	PaymentRequirements,
 	PaymentPayload,
-	PaymentResponse,
+	PaymentContext,
 } from "../shared/types.js";
+import { createDefaultRegistry } from "./strategies/StrategyRegistry.js";
+import type { PaymentStrategy } from "./strategies/PaymentStrategy.js";
 
 dotenv.config();
 
@@ -63,6 +63,14 @@ const CHAINS: ChainConfig[] = [
 
 const enabledChains = CHAINS.filter(c => c.enabled);
 
+// Initialize strategy registry
+const strategyRegistry = createDefaultRegistry(
+	FACILITATOR_URL,
+	PAYMENT_AMOUNT_DISPLAY,
+	PAYMENT_AMOUNT_RAW,
+	USDC_DECIMALS
+);
+
 /**
  * Protected content (example)
  */
@@ -80,49 +88,31 @@ const PREMIUM_CONTENT = {
 };
 
 /**
- * Generate payment requirements for 402 response
+ * Compute canonical resource path (scheme-independent)
+ * Removes query parameters like ?scheme= to ensure resource binding consistency
  */
-function generatePaymentRequirements(resource: string, chain: ChainConfig): PaymentRequirements {
-	return {
-		network: chain.networkSlug,
-		token: "USDC",
-		tokenAddress: chain.usdc,
-		amount: PAYMENT_AMOUNT_DISPLAY, // Human-readable (e.g. "0.01")
-		decimals: USDC_DECIMALS,
-		seller: SELLER_ADDRESS!,
-		resource,
-		facilitator: `${FACILITATOR_URL}/settle`,
-		chainId: chain.chainId,
-		schemes: ["intent"],
-		expiresAt: Math.floor(Date.now() / 1000) + 300, // 5 minutes
-	};
+function getCanonicalResource(req: express.Request): string {
+	const url = new URL(req.url, `http://${req.headers.host}`);
+	return url.pathname; // Returns path without query string
 }
 
 /**
- * Verify payment by forwarding to facilitator
+ * Get payment context from request and chain config
  */
-async function verifyAndSettlePayment(
-	payload: PaymentPayload,
-): Promise<PaymentResponse> {
-	try {
-		logger.info(`Forwarding payment to facilitator: ${FACILITATOR_URL}/settle`);
-
-		const response = await axios.post(`${FACILITATOR_URL}/settle`, payload, {
-			headers: { "Content-Type": "application/json" },
-			timeout: 30000, // 30s timeout (settlement can take time)
-		});
-
-		return response.data as PaymentResponse;
-	} catch (error: any) {
-		if (error.response) {
-			// Facilitator returned an error
-			logger.error(`Facilitator error: ${error.response.status}`);
-			return error.response.data as PaymentResponse;
-		}
-		// Network or other error
-		logger.error(`Failed to reach facilitator: ${error.message}`);
-		throw new Error("Facilitator unavailable");
-	}
+function createPaymentContext(
+	chain: ChainConfig,
+	resource: string,
+	scheme: string = "x402-exact"
+): PaymentContext {
+	return {
+		scheme: scheme as any,
+		chainId: chain.chainId,
+		chainSlug: chain.networkSlug,
+		token: chain.usdc,
+		seller: SELLER_ADDRESS!,
+		resource,
+		mode: scheme === "x402-exact" ? "synchronous" : "deferred",
+	};
 }
 
 /**
@@ -130,16 +120,31 @@ async function verifyAndSettlePayment(
  */
 function createChainEndpoint(chain: ChainConfig) {
 	return async (req: express.Request, res: express.Response) => {
-		const resource = `/api/content/premium/${chain.networkSlug}`;
+		// Get canonical resource (scheme-independent)
+		const canonicalResource = getCanonicalResource(req);
+		
+		// Determine scheme from query parameter (default to exact for MVP)
+		const schemeParam = (req.query.scheme as string) || "x402-exact";
+		const strategy = strategyRegistry.get(schemeParam);
+
+		if (!strategy) {
+			logger.warn(`Unknown scheme: ${schemeParam}`);
+			return res.status(400).json({
+				error: `Unknown payment scheme: ${schemeParam}. Supported: ${strategyRegistry.getSchemes().join(", ")}`,
+			});
+		}
+
+		// Create payment context
+		const context = createPaymentContext(chain, canonicalResource, schemeParam);
 
 		// Check for payment header
 		const paymentHeader = req.headers["x-payment"];
 
 		if (!paymentHeader) {
-			// No payment provided → return 402 with requirements for this chain
-			const requirements = generatePaymentRequirements(resource, chain);
+			// No payment provided → return 402 with requirements for this scheme
+			const requirements = strategy.generateRequirements(canonicalResource, context);
 
-			logger.info(`402 Payment Required for: ${resource} on ${chain.name}`);
+			logger.info(`402 Payment Required for: ${canonicalResource} on ${chain.name} (scheme: ${schemeParam})`);
 
 			return res.status(402).json({
 				error: "Payment required",
@@ -158,81 +163,42 @@ function createChainEndpoint(chain: ChainConfig) {
 			return res.status(400).json({ error: "Invalid x-payment header format" });
 		}
 
-		// Validate chain ID matches
-		if (payload.data.intent.chainId !== chain.chainId) {
-			logger.warn(`Chain ID mismatch: expected ${chain.chainId} (${chain.name}), got ${payload.data.intent.chainId}`);
+		// Get requirements for validation
+		const requirements = strategy.generateRequirements(canonicalResource, context);
+
+		// Validate payment using strategy
+		logger.info(`Processing payment from buyer: ${payload.data.intent.buyer} on ${chain.name} (scheme: ${schemeParam})`);
+
+		const validation = await strategy.validatePayment(payload, requirements, context);
+
+		if (!validation.valid) {
+			logger.warn(`Payment validation failed: ${validation.error}`);
 			return res.status(400).json({
-				error: `Payment intent for wrong chain. Expected ${chain.name} (${chain.chainId})`,
-			});
-		}
-
-		// Validate resource matches
-		if (payload.data.intent.resource !== resource) {
-			logger.warn(`Resource mismatch: expected ${resource}, got ${payload.data.intent.resource}`);
-			return res.status(400).json({
-				error: "Payment intent resource does not match requested resource",
-			});
-		}
-
-		// Validate seller matches
-		if (payload.data.intent.seller.toLowerCase() !== SELLER_ADDRESS!.toLowerCase()) {
-			logger.warn(`Seller mismatch: expected ${SELLER_ADDRESS}, got ${payload.data.intent.seller}`);
-			return res.status(400).json({
-				error: "Payment intent seller does not match this seller",
-			});
-		}
-
-		// Validate USDC address matches chain
-		if (payload.data.intent.token.toLowerCase() !== chain.usdc.toLowerCase()) {
-			logger.warn(`Token mismatch: expected ${chain.usdc} for ${chain.name}, got ${payload.data.intent.token}`);
-			return res.status(400).json({
-				error: `Invalid USDC address for ${chain.name}`,
-			});
-		}
-
-		// Validate amount (compare raw units)
-		if (payload.data.intent.amount !== PAYMENT_AMOUNT_RAW) {
-			logger.warn(`Amount mismatch: expected ${PAYMENT_AMOUNT_RAW} (${PAYMENT_AMOUNT_DISPLAY} USDC), got ${payload.data.intent.amount}`);
-			return res.status(400).json({
-				error: `Invalid payment amount. Expected ${PAYMENT_AMOUNT_DISPLAY} USDC`,
-			});
-		}
-
-		// Forward to facilitator for settlement
-		logger.info(`Processing payment from buyer: ${payload.data.intent.buyer} on ${chain.name}`);
-
-		let paymentResponse: PaymentResponse;
-		try{
-			paymentResponse = await verifyAndSettlePayment(payload);
-		} catch (error: any) {
-			logger.error(`Payment processing failed: ${error.message}`);
-			return res.status(503).json({
-				error: "Payment processing unavailable",
-			});
-		}
-
-		// Check settlement result
-		if (paymentResponse.status !== "settled") {
-			logger.warn(`Payment settlement failed: ${paymentResponse.error}`);
-			return res.status(500).json({
-				error: "Payment settlement failed",
-				details: paymentResponse.error,
+				error: validation.error || "Payment validation failed",
 			});
 		}
 
 		// Payment successful → deliver content
-		logger.success(`Payment settled on ${chain.name}: ${paymentResponse.txHash}`);
-		logger.info(`Delivering content to: ${paymentResponse.buyer}`);
+		const receipt = validation.receipt!;
+		logger.success(`Payment validated on ${chain.name} (scheme: ${schemeParam})`);
+		
+		if (receipt.status === "settled") {
+			logger.info(`Transaction: ${receipt.txHash}`);
+		} else {
+			logger.info(`Status: ${receipt.status} (mode: ${context.mode})`);
+		}
 
 		return res.status(200)
-			.header("x-payment-response", JSON.stringify(paymentResponse))
+			.header("x-payment-response", JSON.stringify(receipt))
 			.json({
 				content: PREMIUM_CONTENT,
 				payment: {
-					txHash: paymentResponse.txHash,
-					amount: paymentResponse.amount,
+					txHash: receipt.txHash,
+					status: receipt.status,
+					amount: receipt.amount,
 					chain: chain.name,
 					chainId: chain.chainId,
+					scheme: schemeParam,
 				},
 			});
 	};
@@ -261,6 +227,7 @@ app.get("/health", (req, res) => {
 		seller: SELLER_ADDRESS,
 		facilitator: FACILITATOR_URL,
 		paymentAmount: PAYMENT_AMOUNT_DISPLAY,
+		schemes: strategyRegistry.getSchemes(),
 		chains: enabledChains.map(c => ({ name: c.name, chainId: c.chainId, endpoint: `/api/content/premium/${c.networkSlug}` })),
 	});
 });
@@ -277,5 +244,6 @@ app.listen(PORT, () => {
 	logger.info(`Seller address: ${SELLER_ADDRESS}`);
 	logger.info(`Facilitator: ${FACILITATOR_URL}`);
 	logger.info(`Payment amount: ${PAYMENT_AMOUNT_DISPLAY} USDC per request`);
+	logger.info(`Supported schemes: ${strategyRegistry.getSchemes().join(", ")}`);
 });
 

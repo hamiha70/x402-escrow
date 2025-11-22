@@ -21,7 +21,8 @@
 		"demo:exact": "tsx scripts/demo-exact.ts",
 		"demo:exact:full": "bash scripts/run_demo_exact.sh",
 		"demo:escrow-deferred": "tsx scripts/demo-escrow-deferred.ts",
-		"test:e2e": "mocha --require tsx/cjs --extension ts 'test/e2e/**/*.test.ts'"
+		"test:e2e": "mocha --require tsx/cjs --extension ts 'test/e2e/**/*.test.ts'",
+		"test:baseline": "mocha --require tsx/cjs --extension ts 'test/**/*.test.ts' --timeout 30000"
 	},
 	"keywords": [
 		"x402",
