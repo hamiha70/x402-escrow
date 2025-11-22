@@ -11,6 +11,8 @@
 		"test:gas": "forge test --gas-report",
 		"test:fork:base": "forge test --fork-url $BASE_SEPOLIA_RPC -vvv",
 		"deploy:base-sepolia": "forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast --verify",
+		"balances": "bash scripts/check_balances.sh",
+		"fund": "bash scripts/fund_wallets.sh",
 		"approve": "tsx scripts/approve_facilitator.ts",
 		"facilitator": "tsx facilitator/server.ts",
 		"seller": "tsx seller/server.ts",
