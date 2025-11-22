@@ -61,8 +61,8 @@ aztec-otc-desk/packages/cli/data/
 # Bun
 bun.lockb
 
-# Submission artifacts
-submission/
+# Submission artifacts (temporarily unignored for ETHGlobal)
+# submission/
 
 # Foundry
 cache/
