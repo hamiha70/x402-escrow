@@ -293,6 +293,67 @@ interface PaymentContext {
 - [ ] x402-private-escrow-deferred strategy
 - [ ] Buyer note management UI
 
+## Key Architectural Decision: Two Separate Vaults
+
+**Design Principle**: Do NOT mix public and private escrow in the same vault.
+
+### Rationale
+1. **Simplicity**: Each vault has single, focused logic
+2. **Gas Optimization**: Public vault stays cheap (~50k gas), private vault accepts higher cost (~300k+ gas)
+3. **User Choice**: Buyer explicitly chooses privacy vs cost tradeoff
+4. **MVP Viability**: Easier to implement and test separately
+
+### Server-Side Implications
+
+#### Environment Configuration
+```bash
+# Two vault addresses per chain
+PUBLIC_VAULT_BASE_SEPOLIA=0x...
+PRIVATE_VAULT_BASE_SEPOLIA=0x...
+PUBLIC_VAULT_POLYGON_AMOY=0x...
+PRIVATE_VAULT_POLYGON_AMOY=0x...
+```
+
+#### Facilitator: Two Queues + Two Settlers
+```typescript
+const publicQueue = new SettlementQueue();    // escrow-deferred
+const privateQueue = new SettlementQueue();   // private-escrow-deferred
+
+const publicSettler = new BatchSettler(publicQueue, PUBLIC_VAULT);
+const privateSettler = new BatchSettler(privateQueue, PRIVATE_VAULT);
+```
+
+#### Seller: Two Strategies
+```typescript
+registry.register(new EscrowDeferredStrategy(PUBLIC_VAULT));
+registry.register(new PrivateEscrowDeferredStrategy(PRIVATE_VAULT));
+
+// Buyer chooses via query param
+GET /api/content?scheme=x402-escrow-deferred        → Public
+GET /api/content?scheme=x402-private-escrow-deferred → Private
+```
+
+#### Buyer: Scheme Selection
+```bash
+SCHEME=x402-escrow-deferred npm run buyer       # Public vault (cheap)
+SCHEME=x402-private-escrow-deferred npm run buyer # Private vault (anonymous)
+```
+
+### Implementation Phases
+
+**Phase 2 (Current Sprint)**: Public Escrow
+- Deploy `PublicVault.sol` with balance mappings
+- Implement `x402-escrow-deferred` scheme
+- Test batching with public balances
+
+**Phase 3 (Future)**: Private Escrow
+- Deploy `PrivateVault.sol` with commitment mappings
+- Implement ZK circuit for note updates
+- Implement `x402-private-escrow-deferred` scheme
+- Buyer note management
+
+**No mixing. Clean separation.**
+
 ## Open Questions
 
 1. **ZK System Choice**: Circom? Noir? Halo2?
