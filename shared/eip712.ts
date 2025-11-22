@@ -1,6 +1,10 @@
 /**
  * EIP-712 utilities for PaymentIntent signing and verification
  * 
+ * Two-signature pattern for x402 compliance:
+ * 1. x402 signature: HTTP authorization with resource binding
+ * 2. EIP-3009 signature: Blockchain settlement
+ * 
  * Reference: https://eips.ethereum.org/EIPS/eip-712
  */
 
@@ -9,7 +13,28 @@ import type { PaymentIntent, EIP712Domain, TransferAuthorization } from "./types
 import { PAYMENT_INTENT_TYPES, TRANSFER_WITH_AUTHORIZATION_TYPES } from "./types.js";
 
 /**
- * Get EIP-712 domain for a given network and facilitator
+ * x402 Protocol Constants
+ */
+const X402_VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000402"; // Symbolic x402 address
+
+/**
+ * Get x402 EIP-712 domain for HTTP layer payment authorization
+ * 
+ * This domain is used for the x402 signature which includes resource binding.
+ * It's separate from the EIP-3009 domain used for blockchain settlement.
+ */
+export function getX402Domain(chainId: number): EIP712Domain {
+	return {
+		name: "x402-Payment-Intent",
+		version: "2",
+		chainId,
+		verifyingContract: X402_VERIFYING_CONTRACT,
+	};
+}
+
+/**
+ * Get EIP-712 domain for a given network and facilitator (legacy)
+ * @deprecated Use getX402Domain() for x402 signatures
  */
 export function getEIP712Domain(
 	chainId: number,
@@ -24,12 +49,32 @@ export function getEIP712Domain(
 }
 
 /**
- * Sign a payment intent using EIP-712
+ * Sign a payment intent using x402 EIP-712 domain
+ * 
+ * This is the HTTP layer authorization signature with resource binding.
  * 
  * @param intent The payment intent to sign
- * @param domain The EIP-712 domain
+ * @param chainId The chain ID
  * @param signer The ethers signer (buyer's wallet)
- * @returns The signature (hex string)
+ * @returns The x402 signature (hex string)
+ */
+export async function signX402PaymentIntent(
+	intent: PaymentIntent,
+	chainId: number,
+	signer: ethers.Signer,
+): Promise<string> {
+	const domain = getX402Domain(chainId);
+	const signature = await signer.signTypedData(
+		domain,
+		PAYMENT_INTENT_TYPES,
+		intent,
+	);
+	return signature;
+}
+
+/**
+ * Sign a payment intent using EIP-712 (legacy)
+ * @deprecated Use signX402PaymentIntent() for x402 signatures
  */
 export async function signPaymentIntent(
 	intent: PaymentIntent,
@@ -45,12 +90,33 @@ export async function signPaymentIntent(
 }
 
 /**
- * Verify a payment intent signature
+ * Verify an x402 payment intent signature
+ * 
+ * This verifies the HTTP layer authorization signature with resource binding.
  * 
  * @param intent The payment intent
- * @param signature The signature to verify
- * @param domain The EIP-712 domain
+ * @param signature The x402 signature to verify
+ * @param chainId The chain ID
  * @returns The recovered signer address
+ */
+export function verifyX402PaymentIntent(
+	intent: PaymentIntent,
+	signature: string,
+	chainId: number,
+): string {
+	const domain = getX402Domain(chainId);
+	const digest = ethers.TypedDataEncoder.hash(
+		domain,
+		PAYMENT_INTENT_TYPES,
+		intent,
+	);
+	const recoveredAddress = ethers.recoverAddress(digest, signature);
+	return recoveredAddress;
+}
+
+/**
+ * Verify a payment intent signature (legacy)
+ * @deprecated Use verifyX402PaymentIntent() for x402 signatures
  */
 export function verifyPaymentIntent(
 	intent: PaymentIntent,

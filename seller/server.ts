@@ -181,7 +181,7 @@ app.get("/api/content/premium", async (req, res) => {
 	// Check settlement result
 	if (paymentResponse.status !== "settled") {
 		logger.warn(`Payment settlement failed: ${paymentResponse.error}`);
-		return res.status(402).json({
+		return res.status(500).json({
 			error: "Payment settlement failed",
 			details: paymentResponse.error,
 		});
@@ -192,7 +192,7 @@ app.get("/api/content/premium", async (req, res) => {
 	logger.info(`Delivering content to: ${paymentResponse.buyer}`);
 
 	return res.status(200)
-		.header("X-PAYMENT-RESPONSE", JSON.stringify(paymentResponse))
+		.header("x-payment-response", JSON.stringify(paymentResponse))
 		.json({
 			content: PREMIUM_CONTENT,
 			payment: {

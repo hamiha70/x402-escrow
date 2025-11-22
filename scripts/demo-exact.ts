@@ -322,10 +322,6 @@ async function runDemo(): Promise<DemoResult> {
 				intent,
 				signature,
 			},
-			metadata: {
-				network: paymentRequirements.network,
-				token: paymentRequirements.token,
-			},
 		};
 
 		logger.logDetail("Submitting to seller with X-Payment header...");
@@ -334,7 +330,7 @@ async function runDemo(): Promise<DemoResult> {
 		const paidResponse = await axios.get(`${SELLER_URL}${RESOURCE}`, {
 			headers: {
 				"Content-Type": "application/json",
-				"X-Payment": JSON.stringify(payload),
+				"x-payment": JSON.stringify(payload),
 			},
 		});
 		

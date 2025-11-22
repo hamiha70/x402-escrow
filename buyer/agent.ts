@@ -19,6 +19,7 @@ import {
 	generateNonce,
 	paymentIntentToTransferAuth,
 	signTransferAuthorizationWithProvider,
+	signX402PaymentIntent,
 } from "../shared/eip712.js";
 import type {
 	PaymentRequirements,
@@ -96,30 +97,39 @@ async function createPaymentIntent(
 		resource: intent.resource,
 	});
 
-	// Convert to EIP-3009 format and sign with USDC's domain
+	// TWO-SIGNATURE PATTERN for full x402 compliance:
+	// 1. x402 signature (HTTP authorization with resource binding)
+	// 2. EIP-3009 signature (blockchain settlement)
+
+	logger.info("Signing x402 PaymentIntent (HTTP layer, resource binding)...");
+	const x402Signature = await signX402PaymentIntent(
+		intent,
+		requirements.chainId,
+		buyerWallet,
+	);
+	logger.success("✓ Signed x402 payment intent with resource binding");
+
+	// Convert to EIP-3009 format
 	const transferAuth = paymentIntentToTransferAuth(intent);
 	
-	logger.info("Signing EIP-3009 TransferWithAuthorization...");
+	logger.info("Signing EIP-3009 TransferWithAuthorization (settlement layer)...");
 	logger.info("Querying USDC contract for EIP-712 domain...");
-	const signature = await signTransferAuthorizationWithProvider(
+	const eip3009Signature = await signTransferAuthorizationWithProvider(
 		transferAuth,
 		requirements.tokenAddress,  // USDC address is the verifying contract
 		requirements.chainId,
 		buyerWallet,
 		provider,  // Query contract for correct domain
 	);
-	logger.success("Signed EIP-3009 authorization (NO APPROVAL NEEDED!)");
+	logger.success("✓ Signed EIP-3009 authorization (NO APPROVAL NEEDED!)");
 
 	const payload: PaymentPayload = {
 		scheme: "intent",
 		data: {
 			intent,
-			signature,
-		},
-		metadata: {
-			network: requirements.network,
-			token: requirements.token,
-			amount: requirements.amount,
+			x402Signature,
+			transferAuth,
+			eip3009Signature,
 		},
 	};
 
@@ -138,7 +148,7 @@ async function requestContentWithPayment(
 
 		const response = await axios.get(`${SELLER_URL}${endpoint}`, {
 			headers: {
-				"X-PAYMENT": JSON.stringify(payload),
+				"x-payment": JSON.stringify(payload),
 			},
 			timeout: 35000, // 35s (settlement takes time)
 		});

@@ -16,7 +16,7 @@ import express from "express";
 import { ethers } from "ethers";
 import dotenv from "dotenv";
 import { createLogger } from "../shared/logger.js";
-import { verifyTransferAuthorizationWithProvider, paymentIntentToTransferAuth } from "../shared/eip712.js";
+import { verifyTransferAuthorizationWithProvider, paymentIntentToTransferAuth, verifyX402PaymentIntent } from "../shared/eip712.js";
 import type {
 	PaymentPayload,
 	PaymentResponse,
@@ -63,7 +63,7 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 	error?: string;
 	buyer?: string;
 }> {
-	const { intent, signature } = payload.data;
+	const { intent, x402Signature, transferAuth, eip3009Signature } = payload.data;
 
 	// Check expiry
 	if (intent.expiry < Math.floor(Date.now() / 1000)) {
@@ -86,15 +86,37 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 		return { valid: false, error: "Nonce already used (replay attack prevented)" };
 	}
 
-	// Verify EIP-3009 signature
-	// Convert intent to TransferAuthorization format for verification
-	const transferAuth = paymentIntentToTransferAuth(intent);
-	let recoveredAddress: string;
+	// STEP 1: Verify x402 signature (HTTP layer, resource binding)
+	logger.info("Verifying x402 signature with resource binding...");
+	let x402RecoveredAddress: string;
+	try {
+		x402RecoveredAddress = verifyX402PaymentIntent(
+			intent,
+			x402Signature,
+			CHAIN_ID,
+		);
+	} catch (error) {
+		return { valid: false, error: "Invalid x402 signature" };
+	}
+
+	// Check that x402 signature matches buyer
+	if (x402RecoveredAddress.toLowerCase() !== intent.buyer.toLowerCase()) {
+		return {
+			valid: false,
+			error: `x402 signature mismatch. Expected ${intent.buyer}, got ${x402RecoveredAddress}`,
+		};
+	}
+
+	logger.success("✓ x402 signature valid (resource binding verified)");
+
+	// STEP 2: Verify EIP-3009 signature (settlement layer)
+	logger.info("Verifying EIP-3009 signature for settlement...");
+	let eip3009RecoveredAddress: string;
 	try {
 		// Query USDC contract for correct EIP-712 domain (cross-chain compatible)
-		recoveredAddress = await verifyTransferAuthorizationWithProvider(
+		eip3009RecoveredAddress = await verifyTransferAuthorizationWithProvider(
 			transferAuth,
-			signature,
+			eip3009Signature,
 			USDC_BASE_SEPOLIA!,
 			CHAIN_ID,
 			provider,
@@ -103,15 +125,22 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
 		return { valid: false, error: "Invalid EIP-3009 signature" };
 	}
 
-	// Check that signature matches buyer
-	if (recoveredAddress.toLowerCase() !== intent.buyer.toLowerCase()) {
+	// Check that EIP-3009 signature matches buyer
+	if (eip3009RecoveredAddress.toLowerCase() !== intent.buyer.toLowerCase()) {
 		return {
 			valid: false,
-			error: `Signature mismatch. Expected ${intent.buyer}, got ${recoveredAddress}`,
+			error: `EIP-3009 signature mismatch. Expected ${intent.buyer}, got ${eip3009RecoveredAddress}`,
 		};
 	}
 
-	return { valid: true, buyer: recoveredAddress };
+	// Verify same nonce in both
+	if (transferAuth.nonce !== intent.nonce) {
+		return { valid: false, error: "Nonce mismatch between x402 and EIP-3009" };
+	}
+
+	logger.success("✓ EIP-3009 signature valid (settlement authorized)");
+
+	return { valid: true, buyer: x402RecoveredAddress };
 }
 
 /**
@@ -120,7 +149,7 @@ async function validatePaymentIntent(payload: PaymentPayload): Promise<{
  * NO APPROVAL NEEDED - signature serves as authorization
  */
 async function settlePayment(payload: PaymentPayload): Promise<SettlementResult> {
-	const { intent, signature } = payload.data;
+	const { intent, transferAuth, eip3009Signature } = payload.data;
 	const usdcContract = new ethers.Contract(USDC_BASE_SEPOLIA!, USDC_ABI, facilitatorWallet);
 
 	try {
@@ -142,17 +171,17 @@ async function settlePayment(payload: PaymentPayload): Promise<SettlementResult>
 			};
 		}
 
-		// Split signature into v, r, s components for EIP-3009
-		const sig = ethers.Signature.from(signature);
+		// Split EIP-3009 signature into v, r, s components
+		const sig = ethers.Signature.from(eip3009Signature);
 
 		// Execute EIP-3009 transferWithAuthorization
-		logger.info(`Executing EIP-3009 transfer: ${intent.buyer} → ${intent.seller} (${intent.amount} USDC)`);
+		logger.info(`Executing EIP-3009 transfer: ${transferAuth.from} → ${transferAuth.to} (${transferAuth.value} USDC)`);
 		const tx = await usdcContract.transferWithAuthorization(
-			intent.buyer,           // from
-			intent.seller,          // to
-			BigInt(intent.amount),  // value
-			0,                      // validAfter (immediately)
-			intent.expiry,          // validBefore (expiry)
+			transferAuth.from,             // from
+			transferAuth.to,               // to
+			BigInt(transferAuth.value),    // value
+			transferAuth.validAfter,       // validAfter
+			transferAuth.validBefore,      // validBefore
 			intent.nonce,           // nonce
 			sig.v,                  // v
 			sig.r,                  // r

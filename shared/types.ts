@@ -38,9 +38,11 @@ export interface PaymentIntent {
 }
 
 /**
- * Payment payload (sent in X-PAYMENT header)
+ * Payment payload (sent in x-payment header)
  * 
- * Matches Polygon's PaymentPayload structure
+ * Two-signature pattern for full x402 compliance:
+ * 1. x402 signature: HTTP authorization with resource binding
+ * 2. EIP-3009 signature: Blockchain settlement authorization
  */
 export interface PaymentPayload {
 	/** Payment scheme (e.g., "intent", "direct") */
@@ -48,18 +50,17 @@ export interface PaymentPayload {
 
 	/** Scheme-specific payment data */
 	data: {
-		/** The payment intent */
+		/** The payment intent (for x402 signature) */
 		intent: PaymentIntent;
 		
-		/** EIP-712 signature */
-		signature: string;
-	};
-
-	/** Optional metadata */
-	metadata?: {
-		network: string;
-		token: string;
-		amount: string;
+		/** x402 EIP-712 signature (HTTP layer authorization with resource binding) */
+		x402Signature: string;
+		
+		/** EIP-3009 transfer authorization (for blockchain settlement) */
+		transferAuth: TransferAuthorization;
+		
+		/** EIP-3009 signature (blockchain layer settlement) */
+		eip3009Signature: string;
 	};
 }
 
