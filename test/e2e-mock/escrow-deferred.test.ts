@@ -129,14 +129,16 @@ describe("E2E x402-escrow-deferred [MOCK_CHAIN]", function() {
 			expect(error.response).to.exist;
 			expect(error.response.status).to.equal(402);
 
-			const requirements: PaymentRequirements = error.response.data.PaymentRequirements[0];
-			expect(requirements).to.exist;
-			expect(requirements.scheme).to.equal("x402-escrow-deferred");
-			expect(requirements.facilitator).to.include("/validate-intent");
-			expect(requirements.vault).to.equal(MOCK_VAULT_ADDRESS);
-			expect(requirements.escrow).to.exist;
-			expect(requirements.escrow.type).to.equal("vault-pool");
-			expect(requirements.escrow.mode).to.equal("deferred");
+		const requirements: PaymentRequirements = error.response.data.PaymentRequirements[0];
+		expect(requirements).to.exist;
+		expect(requirements.scheme).to.equal("x402-escrow-deferred");
+		expect(requirements.facilitator).to.include("/validate-intent");
+		// Vault address comes from env (real deployed vault or mock)
+		expect(requirements.vault).to.be.a("string").with.lengthOf(42); // Valid Ethereum address
+		expect(requirements.vault).to.match(/^0x[a-fA-F0-9]{40}$/);
+		expect(requirements.escrow).to.exist;
+		expect(requirements.escrow.type).to.equal("vault-pool");
+		expect(requirements.escrow.mode).to.equal("deferred");
 		}
 	});
 
