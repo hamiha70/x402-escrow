@@ -64,7 +64,7 @@ export class EscrowDeferredScheme implements SchemeStrategy {
 		// For escrow-deferred, we only need one signature (vault domain)
 		// No EIP-3009 signature needed since settlement is deferred
 		const payload: PaymentPayload = {
-			scheme: "intent", // Keep "intent" for compatibility, but facilitator will detect escrow-deferred from requirements
+			scheme: "x402-escrow-deferred", // Use explicit scheme
 			data: {
 				intent,
 				x402Signature: signature, // Actually vault-domain signature
@@ -95,7 +95,26 @@ export class EscrowDeferredScheme implements SchemeStrategy {
 			};
 		}
 
-		const vaultContract = new ethers.Contract(requirements.vault, VAULT_ABI, provider);
+		// Use chain-specific RPC based on requirements.chainId
+		const chainRpcMap: Record<number, string | undefined> = {
+			84532: process.env.BASE_SEPOLIA_RPC,
+			80002: process.env.POLYGON_AMOY_RPC,
+			421614: process.env.ARBITRUM_SEPOLIA_RPC,
+			11155420: process.env.OPTIMISM_SEPOLIA_RPC,
+			1243: process.env.ARC_TESTNET_RPC,
+			11155111: process.env.ETHEREUM_SEPOLIA_RPC,
+		};
+
+		const chainRpc = chainRpcMap[requirements.chainId];
+		if (!chainRpc) {
+			return {
+				ready: false,
+				action: `No RPC configured for chain ID ${requirements.chainId}`,
+			};
+		}
+
+		const chainProvider = new ethers.JsonRpcProvider(chainRpc);
+		const vaultContract = new ethers.Contract(requirements.vault, VAULT_ABI, chainProvider);
 		const depositBalance = await vaultContract.deposits(wallet.address);
 		const amountRaw = BigInt(Number(requirements.amount) * 10 ** requirements.decimals);
 

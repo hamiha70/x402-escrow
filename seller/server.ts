@@ -50,15 +50,16 @@ interface ChainConfig {
 	networkSlug: string;
 	usdc: string;
 	enabled: boolean;
+	vault?: string; // Vault address for escrow-deferred scheme
 }
 
 const CHAINS: ChainConfig[] = [
-	{ chainId: 84532, name: "Base Sepolia", networkSlug: "base-sepolia", usdc: process.env.USDC_BASE_SEPOLIA || "", enabled: !!process.env.USDC_BASE_SEPOLIA },
-	{ chainId: 80002, name: "Polygon Amoy", networkSlug: "polygon-amoy", usdc: process.env.USDC_POLYGON_AMOY || "", enabled: !!process.env.USDC_POLYGON_AMOY },
-	{ chainId: 421614, name: "Arbitrum Sepolia", networkSlug: "arbitrum-sepolia", usdc: process.env.USDC_ARBITRUM_SEPOLIA || "", enabled: !!process.env.USDC_ARBITRUM_SEPOLIA },
-	{ chainId: 11155420, name: "Optimism Sepolia", networkSlug: "optimism-sepolia", usdc: process.env.USDC_OPTIMISM_SEPOLIA || "", enabled: !!process.env.USDC_OPTIMISM_SEPOLIA },
-	{ chainId: 1243, name: "Arc Testnet", networkSlug: "arc", usdc: process.env.USDC_ARC_TESTNET || "", enabled: !!process.env.USDC_ARC_TESTNET },
-	{ chainId: 11155111, name: "Ethereum Sepolia", networkSlug: "ethereum-sepolia", usdc: process.env.USDC_ETHEREUM_SEPOLIA || "", enabled: !!process.env.USDC_ETHEREUM_SEPOLIA },
+	{ chainId: 84532, name: "Base Sepolia", networkSlug: "base-sepolia", usdc: process.env.USDC_BASE_SEPOLIA || "", enabled: !!process.env.USDC_BASE_SEPOLIA, vault: process.env.VAULT_BASE_SEPOLIA },
+	{ chainId: 80002, name: "Polygon Amoy", networkSlug: "polygon-amoy", usdc: process.env.USDC_POLYGON_AMOY || "", enabled: !!process.env.USDC_POLYGON_AMOY, vault: process.env.VAULT_POLYGON_AMOY },
+	{ chainId: 421614, name: "Arbitrum Sepolia", networkSlug: "arbitrum-sepolia", usdc: process.env.USDC_ARBITRUM_SEPOLIA || "", enabled: !!process.env.USDC_ARBITRUM_SEPOLIA, vault: process.env.VAULT_ARBITRUM_SEPOLIA },
+	{ chainId: 11155420, name: "Optimism Sepolia", networkSlug: "optimism-sepolia", usdc: process.env.USDC_OPTIMISM_SEPOLIA || "", enabled: !!process.env.USDC_OPTIMISM_SEPOLIA, vault: process.env.VAULT_OPTIMISM_SEPOLIA },
+	{ chainId: 1243, name: "Arc Testnet", networkSlug: "arc", usdc: process.env.USDC_ARC_TESTNET || "", enabled: !!process.env.USDC_ARC_TESTNET, vault: process.env.VAULT_ARC_TESTNET },
+	{ chainId: 11155111, name: "Ethereum Sepolia", networkSlug: "ethereum-sepolia", usdc: process.env.USDC_ETHEREUM_SEPOLIA || "", enabled: !!process.env.USDC_ETHEREUM_SEPOLIA, vault: process.env.VAULT_ETHEREUM_SEPOLIA },
 ];
 
 const enabledChains = CHAINS.filter(c => c.enabled);
@@ -99,9 +100,6 @@ function getCanonicalResource(req: express.Request): string {
 /**
  * Get payment context from request and chain config
  */
-// Mock Vault address for escrow-deferred [MOCK_CHAIN]
-const MOCK_VAULT_ADDRESS = process.env.VAULT_ADDRESS || "0x0000000000000000000000000000000000000001";
-
 function createPaymentContext(
 	chain: ChainConfig,
 	resource: string,
@@ -117,9 +115,9 @@ function createPaymentContext(
 		mode: scheme === "x402-exact" ? "synchronous" : "deferred",
 	};
 
-	// Add vault address for escrow-deferred schemes [MOCK_CHAIN]
+	// Add vault address for escrow-deferred schemes
 	if (scheme === "x402-escrow-deferred" || scheme === "x402-private-escrow-deferred") {
-		context.vault = MOCK_VAULT_ADDRESS;
+		context.vault = chain.vault;
 	}
 
 	return context;

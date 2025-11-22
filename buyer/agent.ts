@@ -183,17 +183,19 @@ async function checkBalance(requirements?: PaymentRequirements): Promise<void> {
  * Main flow
  */
 async function main() {
-	const endpoint = "/api/content/premium";
+	const chainSlug = process.env.CHAIN || "base-sepolia";
+	const requestedScheme = process.env.SCHEME || "x402-exact"; // Default to 'x402-exact'
+	const endpoint = `/api/content/premium/${chainSlug}`;
 
 	logger.info("===== x402 Buyer Agent =====");
 	logger.info(`Buyer address: ${BUYER_ADDRESS}`);
 	logger.info(`Seller URL: ${SELLER_URL}`);
-	logger.info(`Requesting: ${endpoint}`);
+	logger.info(`Requesting: ${endpoint} (Scheme: ${requestedScheme})`);
 	logger.info("");
 
 	// Step 1: Request content (will receive 402)
 	logger.info("Step 1: Requesting content...");
-	const { requirements, error } = await requestContent(endpoint);
+	const { requirements, error } = await requestContent(`${endpoint}?scheme=${requestedScheme}`);
 
 	if (error) {
 		logger.error(`Failed: ${error}`);
@@ -224,7 +226,7 @@ async function main() {
 	// Step 3: Submit payment and request content
 	logger.info("Step 3: Submitting payment (waiting for on-chain settlement)...");
 	try {
-		const content = await requestContentWithPayment(endpoint, payload);
+		const content = await requestContentWithPayment(`${endpoint}?scheme=${requestedScheme}`, payload);
 		logger.info("");
 		logger.success("===== SUCCESS =====");
 		logger.info("Content received:", content);
