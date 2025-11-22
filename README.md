@@ -7,11 +7,11 @@ Built for **ETHGlobal Brussels 2025** • Implements [Polygon's x402 specificati
 ## 🌟 Features
 
 - ✅ **Synchronous Settlement**: Payment settles on-chain BEFORE content delivery
-- ✅ **Polygon x402 Compliant**: Matches official HTTP 402 specification
-- ✅ **EIP-712 Signatures**: Cryptographic payment authorization
+- ✅ **Polygon x402 Compliant**: Matches official HTTP 402 specification with EIP-3009
+- ✅ **EIP-3009 Gasless Transfers**: NO APPROVAL NEEDED - signature is authorization
 - ✅ **Multi-Chain**: Works on Base, Ethereum, Arbitrum, Optimism, Polygon, Arc
 - ✅ **Replay Protection**: Nonce tracking prevents double-spend attacks
-- ✅ **No Custom Contracts**: Uses standard ERC-20 `transferFrom`
+- ✅ **No Custom Contracts**: Uses USDC's built-in EIP-3009 `transferWithAuthorization`
 
 ## 🏗️ Architecture
 
@@ -37,10 +37,10 @@ Built for **ETHGlobal Brussels 2025** • Implements [Polygon's x402 specificati
 
 1. **Buyer** requests protected content
 2. **Seller** responds `402 Payment Required` + payment requirements
-3. **Buyer** signs PaymentIntent (EIP-712) and retries with `X-PAYMENT` header
+3. **Buyer** signs EIP-3009 TransferWithAuthorization (EIP-712) and retries with `X-PAYMENT` header
 4. **Seller** forwards payment to **Facilitator**
-5. **Facilitator** validates signature and executes `transferFrom` (USDC: buyer → seller)
-6. **Facilitator** waits for blockchain confirmation
+5. **Facilitator** validates signature and executes `transferWithAuthorization` (USDC: buyer → seller)
+6. **Facilitator** waits for blockchain confirmation (gasless for buyer, NO APPROVAL NEEDED)
 7. **Seller** delivers content only after confirmed settlement
 
 ## 🚀 Quick Start
@@ -70,14 +70,9 @@ npm run balances
 npm run fund
 ```
 
-### 4. Approve Facilitator
+### 4. Run Demo
 
-```bash
-# Buyer must approve facilitator to spend USDC
-npm run approve
-```
-
-### 5. Run Demo
+**No approval needed!** EIP-3009 eliminates the approval step.
 
 **Terminal 1 - Facilitator:**
 
@@ -135,10 +130,11 @@ x402-escrow/
 
 ### Facilitator (Port 4023)
 
-- **POST /settle**: Validates EIP-712 signature and executes `transferFrom`
+- **POST /settle**: Validates EIP-3009 signature and executes `transferWithAuthorization`
 - Checks signature, nonce, expiry, token, chain ID
-- Executes synchronous on-chain settlement
+- Executes synchronous on-chain settlement (NO APPROVAL NEEDED)
 - Returns `PaymentResponse` with transaction hash
+- Gasless for buyers - facilitator pays gas
 
 ### Seller (Port 4022)
 
@@ -172,10 +168,9 @@ npm run test:fork:base
 ```bash
 npm run balances    # Check wallet balances (all chains)
 npm run fund        # Fund wallets (all chains)
-npm run approve     # Approve facilitator to spend USDC
 npm run facilitator # Start facilitator server
 npm run seller      # Start seller server
-npm run buyer       # Run buyer payment flow
+npm run buyer       # Run buyer payment flow (no approval needed!)
 ```
 
 ## 📊 Polygon x402 Compliance
@@ -190,11 +185,12 @@ This implementation follows [Polygon's x402 specification](https://agentic-docs.
 - ✅ **EIP-712 Signatures**: Cryptographic authorization
 - ✅ **Multi-Chain**: Works on any EVM chain
 
-### Differences from Polygon Reference
+### Alignment with Polygon Reference
 
-- Uses **synchronous settlement** (immediate `transferFrom`) instead of deferred batch settlement
-- Requires **USDC approval** before payment (Polygon may support gasless alternatives)
-- **Facilitator executes settlement** (Polygon may support direct buyer settlement)
+- ✅ Uses **EIP-3009** (`transferWithAuthorization`) - same as Polygon
+- ✅ **Synchronous settlement** - payment confirmed before content delivery
+- ✅ **NO APPROVAL NEEDED** - signature serves as authorization (gasless for buyer)
+- ✅ **Facilitator executes settlement** - standard x402 pattern
 
 ## 🔐 Security
 

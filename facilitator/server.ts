@@ -45,11 +45,11 @@ if (!RPC_URL || !FACILITATOR_PRIVATE_KEY || !FACILITATOR_ADDRESS || !USDC_BASE_S
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const facilitatorWallet = new ethers.Wallet(FACILITATOR_PRIVATE_KEY, provider);
 
-// ERC-20 ABI (minimal - just what we need)
-const ERC20_ABI = [
-	"function transferFrom(address from, address to, uint256 amount) returns (bool)",
-	"function allowance(address owner, address spender) view returns (uint256)",
+// USDC EIP-3009 ABI
+const USDC_ABI = [
+	"function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
 	"function balanceOf(address account) view returns (uint256)",
+	"function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
 ];
 
 // Nonce tracking (in-memory for now, should be persistent in production)
@@ -107,13 +107,13 @@ function validatePaymentIntent(payload: PaymentPayload): {
 }
 
 /**
- * Execute on-chain settlement using transferFrom
+ * Execute on-chain settlement using EIP-3009 transferWithAuthorization
  * 
- * NOTE: Buyer must have approved the facilitator to spend their USDC
+ * NO APPROVAL NEEDED - signature serves as authorization
  */
 async function settlePayment(payload: PaymentPayload): Promise<SettlementResult> {
-	const { intent } = payload.data;
-	const usdcContract = new ethers.Contract(USDC_BASE_SEPOLIA!, ERC20_ABI, facilitatorWallet);
+	const { intent, signature } = payload.data;
+	const usdcContract = new ethers.Contract(USDC_BASE_SEPOLIA!, USDC_ABI, facilitatorWallet);
 
 	try {
 		// Check buyer's balance
@@ -125,21 +125,30 @@ async function settlePayment(payload: PaymentPayload): Promise<SettlementResult>
 			};
 		}
 
-		// Check allowance
-		const allowance = await usdcContract.allowance(intent.buyer, FACILITATOR_ADDRESS);
-		if (allowance < BigInt(intent.amount)) {
+		// Check if nonce already used on-chain
+		const isUsed = await usdcContract.authorizationState(intent.buyer, intent.nonce);
+		if (isUsed) {
 			return {
 				success: false,
-				error: `Insufficient allowance. Has: ${allowance}, needs: ${intent.amount}. Buyer must approve facilitator.`,
+				error: "Nonce already used on-chain (replay protection)",
 			};
 		}
 
-		// Execute transferFrom
-		logger.info(`Executing transfer: ${intent.buyer} → ${intent.seller} (${intent.amount} USDC)`);
-		const tx = await usdcContract.transferFrom(
-			intent.buyer,
-			intent.seller,
-			BigInt(intent.amount),
+		// Split signature into v, r, s components for EIP-3009
+		const sig = ethers.Signature.from(signature);
+
+		// Execute EIP-3009 transferWithAuthorization
+		logger.info(`Executing EIP-3009 transfer: ${intent.buyer} → ${intent.seller} (${intent.amount} USDC)`);
+		const tx = await usdcContract.transferWithAuthorization(
+			intent.buyer,           // from
+			intent.seller,          // to
+			BigInt(intent.amount),  // value
+			0,                      // validAfter (immediately)
+			intent.expiry,          // validBefore (expiry)
+			intent.nonce,           // nonce
+			sig.v,                  // v
+			sig.r,                  // r
+			sig.s,                  // s
 		);
 
 		// Wait for confirmation
@@ -153,10 +162,10 @@ async function settlePayment(payload: PaymentPayload): Promise<SettlementResult>
 			};
 		}
 
-		logger.success(`Settlement successful: ${tx.hash}`);
+		logger.success(`EIP-3009 settlement successful: ${tx.hash}`);
 		logger.info(`Gas used: ${receipt.gasUsed.toString()}`);
 
-		// Mark nonce as used
+		// Mark nonce as used (redundant with on-chain, but good for local tracking)
 		const nonceKey = `${intent.buyer}-${intent.nonce}`;
 		usedNonces.add(nonceKey);
 
@@ -166,7 +175,7 @@ async function settlePayment(payload: PaymentPayload): Promise<SettlementResult>
 			gasUsed: receipt.gasUsed.toString(),
 		};
 	} catch (error: any) {
-		logger.error("Settlement failed", error.message);
+		logger.error("EIP-3009 settlement failed", error.message);
 		return {
 			success: false,
 			error: error.message || "Unknown settlement error",
@@ -259,6 +268,7 @@ app.listen(PORT, () => {
 	logger.info(`Chain ID: ${CHAIN_ID} (Base Sepolia)`);
 	logger.info(`Facilitator address: ${FACILITATOR_ADDRESS}`);
 	logger.info(`USDC address: ${USDC_BASE_SEPOLIA}`);
-	logger.info(`Settlement mode: SYNCHRONOUS (immediate transferFrom)`);
+	logger.info(`Settlement mode: SYNCHRONOUS (EIP-3009 transferWithAuthorization)`);
+	logger.info(`✅ NO APPROVAL NEEDED - gasless for buyers!`);
 });
 

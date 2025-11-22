@@ -16,9 +16,9 @@ import { ethers } from "ethers";
 import dotenv from "dotenv";
 import { createLogger } from "../shared/logger.js";
 import {
-	signPaymentIntent,
-	getEIP712Domain,
 	generateNonce,
+	paymentIntentToTransferAuth,
+	signTransferAuthorization,
 } from "../shared/eip712.js";
 import type {
 	PaymentRequirements,
@@ -96,19 +96,17 @@ async function createPaymentIntent(
 		resource: intent.resource,
 	});
 
-	// Get EIP-712 domain from facilitator address
-	const facilitatorAddress = new URL(requirements.facilitator).pathname.includes("settle")
-		? requirements.facilitator.replace("/settle", "").replace("http://localhost:4023", process.env.FACILITATOR_WALLET_ADDRESS!)
-		: requirements.facilitator;
-
-	const domain = getEIP712Domain(
+	// Convert to EIP-3009 format and sign with USDC's domain
+	const transferAuth = paymentIntentToTransferAuth(intent);
+	
+	logger.info("Signing EIP-3009 TransferWithAuthorization...");
+	const signature = await signTransferAuthorization(
+		transferAuth,
+		requirements.tokenAddress,  // USDC address is the verifying contract
 		requirements.chainId,
-		process.env.FACILITATOR_WALLET_ADDRESS!,
+		buyerWallet,
 	);
-
-	// Sign intent
-	const signature = await signPaymentIntent(intent, domain, buyerWallet);
-	logger.success("Signed payment intent");
+	logger.success("Signed EIP-3009 authorization (NO APPROVAL NEEDED!)");
 
 	const payload: PaymentPayload = {
 		scheme: "intent",
@@ -166,11 +164,10 @@ async function requestContentWithPayment(
 }
 
 /**
- * Check USDC allowance and balance
+ * Check USDC balance (no approval needed with EIP-3009!)
  */
-async function checkApprovalAndBalance(): Promise<void> {
+async function checkBalance(): Promise<void> {
 	const ERC20_ABI = [
-		"function allowance(address owner, address spender) view returns (uint256)",
 		"function balanceOf(address account) view returns (uint256)",
 		"function decimals() view returns (uint8)",
 	];
@@ -182,25 +179,16 @@ async function checkApprovalAndBalance(): Promise<void> {
 	);
 
 	const balance = await usdcContract.balanceOf(BUYER_ADDRESS);
-	const allowance = await usdcContract.allowance(
-		BUYER_ADDRESS,
-		process.env.FACILITATOR_WALLET_ADDRESS,
-	);
 	const decimals = await usdcContract.decimals();
 
 	const balanceFormatted = Number(balance) / 10 ** Number(decimals);
-	const allowanceFormatted = Number(allowance) / 10 ** Number(decimals);
 
 	logger.info(`USDC Balance: ${balanceFormatted} USDC`);
-	logger.info(`Facilitator Allowance: ${allowanceFormatted} USDC`);
+	logger.info(`✅ NO APPROVAL NEEDED (using EIP-3009)`);
 
 	if (balance === 0n) {
 		logger.error("⚠️  Buyer has no USDC balance!");
-	}
-
-	if (allowance === 0n) {
-		logger.warn("⚠️  Buyer has not approved facilitator to spend USDC!");
-		logger.warn("Run: cast send <USDC_ADDRESS> \"approve(address,uint256)\" <FACILITATOR_ADDRESS> <AMOUNT>");
+		logger.error("Run: npm run fund");
 	}
 }
 
@@ -216,8 +204,8 @@ async function main() {
 	logger.info(`Requesting: ${endpoint}`);
 	logger.info("");
 
-	// Check balance and approval
-	await checkApprovalAndBalance();
+	// Check balance (no approval needed!)
+	await checkBalance();
 	logger.info("");
 
 	// Step 1: Request content (will receive 402)

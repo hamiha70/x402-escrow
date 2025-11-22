@@ -92,6 +92,36 @@ export const PAYMENT_INTENT_TYPES = {
 };
 
 /**
+ * EIP-3009 TransferWithAuthorization parameters
+ * 
+ * Used for gasless USDC transfers without approval
+ */
+export interface TransferAuthorization {
+	from: string;          // buyer address
+	to: string;            // seller address  
+	value: string;         // amount in token units
+	validAfter: number;    // unix timestamp
+	validBefore: number;   // unix timestamp (expiry)
+	nonce: string;         // bytes32 unique nonce
+}
+
+/**
+ * EIP-712 types for EIP-3009 TransferWithAuthorization
+ * 
+ * Matches USDC contract's EIP-3009 implementation
+ */
+export const TRANSFER_WITH_AUTHORIZATION_TYPES = {
+	TransferWithAuthorization: [
+		{ name: "from", type: "address" },
+		{ name: "to", type: "address" },
+		{ name: "value", type: "uint256" },
+		{ name: "validAfter", type: "uint256" },
+		{ name: "validBefore", type: "uint256" },
+		{ name: "nonce", type: "bytes32" },
+	],
+};
+
+/**
  * Validation result from facilitator
  */
 export interface ValidationResult {

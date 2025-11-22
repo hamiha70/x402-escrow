@@ -44,17 +44,9 @@ Get testnet tokens:
 
 ## Running the Demo
 
-### Step 1: Approve Facilitator
+### Step 1: Start Services
 
-The buyer must approve the facilitator to spend their USDC:
-
-```bash
-npm run approve
-```
-
-This grants the facilitator permission to execute `transferFrom` on behalf of the buyer.
-
-### Step 2: Start Services
+**No approval needed!** We use EIP-3009 which allows gasless transfers without prior approval.
 
 In **separate terminals**:
 
@@ -70,7 +62,7 @@ npm run facilitator
 npm run seller
 ```
 
-### Step 3: Make a Payment
+### Step 2: Make a Payment
 
 In **Terminal 3 - Buyer:**
 
@@ -83,15 +75,16 @@ npm run buyer
 1. **Buyer** requests `/api/content/premium`
 2. **Seller** responds with `402 Payment Required` + payment requirements
 3. **Buyer** creates and signs PaymentIntent (EIP-712)
-4. **Buyer** retries request with `X-PAYMENT` header
-5. **Seller** forwards payment to **Facilitator**
-6. **Facilitator**:
-   - Validates signature
-   - Executes `transferFrom` (USDC: buyer → seller)
+4. **Buyer** creates and signs EIP-3009 TransferWithAuthorization (EIP-712)
+5. **Buyer** retries request with `X-PAYMENT` header
+6. **Seller** forwards payment to **Facilitator**
+7. **Facilitator**:
+   - Validates EIP-3009 signature
+   - Executes `transferWithAuthorization` (gasless, NO APPROVAL NEEDED)
    - Waits for blockchain confirmation
    - Returns success with txHash
-7. **Seller** delivers content with `X-PAYMENT-RESPONSE` header
-8. **Buyer** receives content + payment confirmation
+8. **Seller** delivers content with `X-PAYMENT-RESPONSE` header
+9. **Buyer** receives content + payment confirmation
 
 ## Verification
 
@@ -102,10 +95,6 @@ https://sepolia.basescan.org/tx/<TX_HASH>
 ```
 
 ## Troubleshooting
-
-### "Insufficient allowance"
-
-Run the approve script: `npm run approve`
 
 ### "Insufficient balance"
 

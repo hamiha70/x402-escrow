@@ -90,3 +90,88 @@ export function hashPaymentIntent(intent: PaymentIntent): string {
 	);
 }
 
+/**
+ * Convert PaymentIntent to EIP-3009 TransferWithAuthorization format
+ * 
+ * This maps our x402 payment intent to the format required by USDC's
+ * transferWithAuthorization function.
+ */
+export function paymentIntentToTransferAuth(
+	intent: PaymentIntent,
+): import("./types.js").TransferAuthorization {
+	return {
+		from: intent.buyer,
+		to: intent.seller,
+		value: intent.amount,
+		validAfter: 0, // valid immediately
+		validBefore: intent.expiry,
+		nonce: intent.nonce,
+	};
+}
+
+/**
+ * Sign EIP-3009 TransferWithAuthorization
+ * 
+ * @param auth The transfer authorization parameters
+ * @param tokenAddress The USDC token address (verifying contract)
+ * @param chainId The chain ID
+ * @param signer The ethers signer (buyer's wallet)
+ * @returns The signature (hex string)
+ */
+export async function signTransferAuthorization(
+	auth: import("./types.js").TransferAuthorization,
+	tokenAddress: string,
+	chainId: number,
+	signer: ethers.Signer,
+): Promise<string> {
+	const domain: import("./types.js").EIP712Domain = {
+		name: "USD Coin",  // USDC's EIP-712 domain name
+		version: "2",      // USDC version
+		chainId,
+		verifyingContract: tokenAddress,
+	};
+
+	const { TRANSFER_WITH_AUTHORIZATION_TYPES } = await import("./types.js");
+
+	const signature = await signer.signTypedData(
+		domain,
+		TRANSFER_WITH_AUTHORIZATION_TYPES,
+		auth,
+	);
+	return signature;
+}
+
+/**
+ * Verify EIP-3009 TransferWithAuthorization signature
+ * 
+ * @param auth The transfer authorization
+ * @param signature The signature to verify
+ * @param tokenAddress The USDC token address
+ * @param chainId The chain ID
+ * @returns The recovered signer address
+ */
+export function verifyTransferAuthorization(
+	auth: import("./types.js").TransferAuthorization,
+	signature: string,
+	tokenAddress: string,
+	chainId: number,
+): string {
+	const domain: import("./types.js").EIP712Domain = {
+		name: "USD Coin",
+		version: "2",
+		chainId,
+		verifyingContract: tokenAddress,
+	};
+
+	// Dynamic import to avoid circular dependency
+	const { TRANSFER_WITH_AUTHORIZATION_TYPES } = require("./types.js");
+
+	const digest = ethers.TypedDataEncoder.hash(
+		domain,
+		TRANSFER_WITH_AUTHORIZATION_TYPES,
+		auth,
+	);
+	const recoveredAddress = ethers.recoverAddress(digest, signature);
+	return recoveredAddress;
+}
+
