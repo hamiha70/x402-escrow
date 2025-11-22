@@ -63,9 +63,10 @@ format_balance() {
     local BALANCE=$1
     local DECIMALS=${2:-18}
     
-    if [ "$BALANCE" = "0" ]; then
+    if [ "$BALANCE" = "0" ] || [ -z "$BALANCE" ]; then
         echo "0.00"
     else
+        # Use bc for arbitrary precision arithmetic
         echo "scale=2; $BALANCE / (10^$DECIMALS)" | bc 2>/dev/null || echo "0.00"
     fi
 }
@@ -279,13 +280,13 @@ if [ -z "$AMOUNT" ]; then
 fi
 
 # Validate amount is a number
-if ! [[ "$AMOUNT" =~ ^[0-9]*\.?[0-9]*$ ]]; then
+if ! [[ "$AMOUNT" =~ ^[0-9]*\.?[0-9]+$|^[0-9]+$ ]]; then
     echo -e "${RED}Invalid amount format${NC}"
     exit 1
 fi
 
 # Convert to wei/smallest unit
-AMOUNT_WEI=$(echo "scale=0; $AMOUNT * (10^$DECIMALS)" | bc 2>/dev/null)
+AMOUNT_WEI=$(awk "BEGIN {printf \"%.0f\", $AMOUNT * 10^$DECIMALS}")
 
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
@@ -351,10 +352,13 @@ if [ "$TOKEN_TYPE" = "native" ]; then
     fi
 else
     # USDC transfer
+    echo "Calling USDC contract at $USDC..."
     TX_HASH=$(cast send "$USDC" "transfer(address,uint256)" "$DEST_ADDRESS" "$AMOUNT_WEI" \
         --private-key "$SOURCE_KEY" \
         --rpc-url "$RPC" \
         2>&1)
+    
+    echo ""  # Newline after transaction output
     
     if echo "$TX_HASH" | grep -q "transactionHash"; then
         HASH=$(echo "$TX_HASH" | grep "transactionHash" | awk '{print $2}')
@@ -383,22 +387,17 @@ else
                 echo "Explorer: ${ARC_TESTNET_EXPLORER}/${HASH}"
                 ;;
         esac
+        
+        # Always show updated balances after successful transfer
+        echo ""
+        echo "Waiting 2 seconds for transaction to be indexed..."
+        sleep 2
+        display_balances "$SELECTED_CHAIN"
     else
         echo -e "${RED}Transfer failed:${NC}"
         echo "$TX_HASH"
         exit 1
     fi
-fi
-
-echo ""
-echo -e "${GREEN}Would you like to see updated balances? [y/N]:${NC} "
-read SHOW_BALANCES
-
-if [ "$SHOW_BALANCES" = "y" ] || [ "$SHOW_BALANCES" = "Y" ]; then
-    echo ""
-    echo "Waiting 3 seconds for transaction to be indexed..."
-    sleep 3
-    display_balances "$SELECTED_CHAIN"
 fi
 
 echo ""
