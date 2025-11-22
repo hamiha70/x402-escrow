@@ -7,6 +7,7 @@
 ## 1. Organize Services by Scheme Folders
 
 **Current structure**:
+
 ```
 facilitator/services/
 ├── ExactSettlement.ts
@@ -18,6 +19,7 @@ facilitator/services/
 ```
 
 **Proposed structure**:
+
 ```
 facilitator/services/
 ├── exact/
@@ -32,11 +34,13 @@ facilitator/services/
 ```
 
 **Impact**:
+
 - Update imports in routes: `../services/exact/ExactSettlement.js`
 - Update imports in tests
 - Update imports in main server.ts
 
-**Why postponed**: 
+**Why postponed**:
+
 - Needs Oasis team support NOW (3-hour window)
 - Refactoring is low-risk maintenance
 - Code works as-is; separation is organizational
@@ -49,6 +53,7 @@ facilitator/services/
 ## 2. Similar Organization for Routes
 
 **Current**:
+
 ```
 facilitator/routes/
 ├── exact.ts
@@ -58,6 +63,7 @@ facilitator/routes/
 ```
 
 **Proposed**:
+
 ```
 facilitator/routes/
 ├── exact.ts
@@ -78,6 +84,7 @@ facilitator/routes/
 ## 3. Strategy Organization
 
 **Current**:
+
 ```
 seller/strategies/
 ├── ExactStrategy.ts
@@ -102,4 +109,3 @@ seller/strategies/
 ---
 
 _This backlog captures organizational improvements without blocking TEE implementation progress._
-
