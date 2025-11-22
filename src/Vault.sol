@@ -112,12 +112,7 @@ contract Vault {
         uint256 batchId = ++batchIdCounter;
         uint256 totalAmount = 0;
 
-        // Track per-buyer totals for solvency check
-        mapping(address => uint256) storage buyerTotals;
-        // Note: Solidity doesn't support dynamic mapping keys in memory,
-        // so we'll check solvency per buyer as we process
-
-        // Process each intent
+        // First pass: Validate signatures and mark nonces
         for (uint256 i = 0; i < intents.length; i++) {
             PaymentIntent calldata intent = intents[i];
             bytes calldata signature = signatures[i];
@@ -152,14 +147,11 @@ contract Vault {
             address signer = _recoverSigner(intentHash, signature);
             require(signer == intent.buyer, "Vault: invalid signature");
 
-            // Mark nonce as used
+            // Mark nonce as used (prevents replay)
             usedNonces[intent.buyer][intent.nonce] = true;
 
-            // Accumulate buyer total (for solvency check)
-            // We'll check solvency after processing all intents for this buyer
             totalAmount += intent.amount;
 
-            // Emit event
             emit IntentSettled(
                 intent.buyer,
                 intent.seller,
@@ -170,18 +162,13 @@ contract Vault {
             );
         }
 
-        // Calculate per-buyer totals and check solvency
-        mapping(address => uint256) memory buyerTotals;
-        for (uint256 i = 0; i < intents.length; i++) {
-            buyerTotals[intents[i].buyer] += intents[i].amount;
-        }
-
-        // Check solvency and decrease deposits
+        // Second pass: Check solvency and decrease deposits (once per buyer)
         for (uint256 i = 0; i < intents.length; i++) {
             address buyer = intents[i].buyer;
-            // Only process once per buyer
-            if (i == 0 || _isFirstOccurrence(intents, buyer, i)) {
-                uint256 buyerTotal = buyerTotals[buyer];
+            
+            // Only process each buyer once
+            if (_isFirstOccurrence(intents, buyer, i)) {
+                uint256 buyerTotal = _calculateBuyerTotal(intents, buyer);
                 require(
                     deposits[buyer] >= buyerTotal,
                     "Vault: insufficient deposit"
@@ -190,12 +177,28 @@ contract Vault {
             }
         }
 
-        // Perform transfers to sellers
+        // Third pass: Transfer to sellers
         for (uint256 i = 0; i < intents.length; i++) {
             token.safeTransfer(intents[i].seller, intents[i].amount);
         }
 
         emit BatchWithdrawn(batchId, totalAmount, intents.length);
+    }
+
+    /**
+     * @notice Calculate total amount for a specific buyer in the batch
+     */
+    function _calculateBuyerTotal(
+        PaymentIntent[] calldata intents,
+        address buyer
+    ) private pure returns (uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < intents.length; i++) {
+            if (intents[i].buyer == buyer) {
+                total += intents[i].amount;
+            }
+        }
+        return total;
     }
 
     /**
