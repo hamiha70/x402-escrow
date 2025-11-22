@@ -1,143 +1,164 @@
-# Multi-Chain Status
+# Multi-Chain Testing Status
 
-## Summary
+## Architecture: Chain-Specific Endpoints
 
-✅ **Multi-chain infrastructure fully implemented and tested**
+**Implementation**: Single facilitator and seller handle all chains simultaneously. Buyers choose chain by selecting the appropriate endpoint.
 
-Our dynamic USDC domain resolution makes the code truly chain-agnostic. No hardcoded domains!
-
-## Implementation
-
-### Dynamic Domain Query
-
-```typescript
-export async function getUSDCDomain(
-  tokenAddress: string,
-  chainId: number,
-  provider: ethers.Provider
-): Promise<EIP712Domain> {
-  const usdcContract = new ethers.Contract(tokenAddress, USDC_ABI, provider);
-  const name = await usdcContract.name(); // Queries contract
-  const version = await usdcContract.EIP712_VERSION(); // Queries contract
-  return { name, version, chainId, verifyingContract: tokenAddress };
-}
+```
+Seller Endpoints:
+  /api/content/premium/base-sepolia    → Base Sepolia (84532)
+  /api/content/premium/polygon-amoy    → Polygon Amoy (80002)
+  /api/content/premium/arc             → Arc Testnet (1243)
+  ...
 ```
 
-This means **no code changes needed** to support new chains!
+**Key Feature**: No server restart needed to test different chains. The facilitator dynamically:
 
-## Supported Networks
-
-| Network              | Chain ID | Status        | USDC Balance | Notes                 |
-| -------------------- | -------- | ------------- | ------------ | --------------------- |
-| **Base Sepolia**     | 84532    | ✅ Tested     | 9.95 USDC    | Primary testnet       |
-| **Arbitrum Sepolia** | 421614   | ✅ Ready      | 10.00 USDC   | Funded & configured   |
-| **Optimism Sepolia** | 11155420 | ✅ Ready      | 10.00 USDC   | Funded & configured   |
-| **Polygon Amoy**     | 80002    | ✅ Ready      | 10.00 USDC   | Funded & configured   |
-| **Arc Testnet**      | 1243     | ✅ Ready      | 10.02 USDC   | Funded & configured   |
-| **Ethereum Sepolia** | 11155111 | ⚠️ RPC Issues | N/A          | QuickNode DNS failure |
+- Reads `chainId` from payment intent
+- Selects correct RPC provider
+- Validates against correct USDC contract
+- Settles on the specified chain
 
 ## Test Results
 
-All tests successfully completed using the parameterized demo script:
+### ✅ Polygon Amoy (Chain ID: 80002)
 
-```bash
-./scripts/run_demo_exact.sh [CHAIN] [--auto-stop]
-```
+**Status**: PASSED ✓
 
-### Base Sepolia (84532)
+**Transaction**: `0xdedce39306d49d3f9ac4ecdc8ed92f2e4e4ad3e319530254b20e1628f542a75a`
 
-✅ **PASSED** - Full end-to-end test
+**Details**:
 
-- Transaction: `0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78`
-- Block: 34008035
-- Gas Used: 85740
-- Latency: 16.6 seconds
-- ✓ Both signatures verified
-- ✓ Resource binding confirmed
-- ✓ Nonce binding confirmed
-- Explorer: https://sepolia.basescan.org/tx/0xfc761156a009b4ea7cd0f92a9a3c4887a8897164a683c76f28ced9c8082aba78
+- Block: 29,364,700
+- Gas Used: 102,820
+- Latency: 21.22s (includes signing + settlement)
+- USDC Contract: `0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582`
+- Explorer: https://www.oklink.com/amoy/tx/0xdedce39306d49d3f9ac4ecdc8ed92f2e4e4ad3e319530254b20e1628f542a75a
 
-### Polygon Amoy (80002)
+**Balances**:
 
-✅ **PASSED** - Full end-to-end test
+- Buyer: 10.00 → 9.99 USDC (-0.01)
+- Seller: 0.00 → 0.01 USDC (+0.01)
 
-- Transaction: `0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae`
-- Block: 34009003
-- Gas Used: 85716
-- Latency: 11.7 seconds
-- ✓ Both signatures verified
-- ✓ Dynamic domain resolution working
-- ✓ Cross-chain USDC compatibility proven
-- Explorer: https://amoy.polygonscan.com/tx/0x6d0a5e278859d99ab44e094eaac57a1cc5f27b20a29e0c9f2b4bce4cfddb86ae
-
-### Arc Testnet (1243)
-
-✅ **PASSED** - Full end-to-end test
-
-- Transaction: `0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25`
-- Block: 34009020
-- Gas Used: 85720
-- Latency: 12.1 seconds
-- ✓ Both signatures verified
-- ✓ Dynamic domain resolution working
-- ✓ Circle's native chain validated
-- Explorer: https://explorer.arc-testnet.circlechain.xyz/tx/0xee7a4a921eef65576eafe451bfb76833a04c909fed1f7ff5f9daead8175adf25
-
-### Other Chains (Ready, Not Yet Tested)
-
-✅ **Arbitrum Sepolia** - Funded and configured (10 USDC)
-✅ **Optimism Sepolia** - Funded and configured (10 USDC)
-
-**To test any chain**:
-
-```bash
-./scripts/run_demo_exact.sh arbitrum-sepolia --auto-stop
-./scripts/run_demo_exact.sh optimism-sepolia --auto-stop
-```
-
-## Key Features
-
-### 1. Automatic Domain Resolution
-
-No need to know each chain's USDC domain in advance. We query it at runtime.
-
-### 2. Cross-Chain Compatibility
-
-Same code works on:
-
-- Different USDC implementations (Circle vs bridged)
-- Different domain names ("USDC" vs "USD Coin")
-- Different versions ("1" vs "2")
-
-### 3. Zero Config for New Chains
-
-To add a new chain:
-
-1. Add RPC URL to `.env`
-2. Add USDC address to `.env`
-3. Run - it just works!
-
-## Multi-Chain Demo Plan
-
-For full multi-chain validation, we can create a script that:
-
-1. Runs the demo on each chain sequentially
-2. Verifies dynamic domain resolution works
-3. Confirms cross-chain USDC signature compatibility
-4. Generates a multi-chain report
-
-**Status**: Infrastructure complete, multi-chain testing script optional but not critical for hackathon submission.
-
-## Why This Matters
-
-**Standard x402 implementations are often single-chain**. By dynamically querying USDC contracts for their EIP-712 domains, we achieve true multi-chain compatibility without maintaining chain-specific configuration.
-
-This is especially important for:
-
-- Agentic payments (agents operate across chains)
-- Liquidity aggregation (route payments through cheapest chain)
-- Failover (switch chains if one is congested)
+**Verification**:
+✓ Payment intent signed for chain 80002
+✓ Seller endpoint: `/api/content/premium/polygon-amoy`
+✓ Facilitator settled on Polygon Amoy RPC
+✓ USDC transfer confirmed on-chain
+✓ Two-signature pattern verified (x402 + EIP-3009)
+✓ Resource binding: `/api/content/premium/polygon-amoy`
+✓ Nonce binding: Same nonce in both signatures
 
 ---
 
-**Bottom Line**: We built it right. Multi-chain support isn't bolted on - it's architected in.
+### ✅ Base Sepolia (Chain ID: 84532)
+
+**Status**: PASSED ✓
+
+**Transaction**: `0xf841bb9fe9f1db4ebc7a787055fc286ce23b704d40c417abacbeacd3081d6cb6`
+
+**Details**:
+
+- Block: 34,009,586
+- Gas Used: 85,720
+- Latency: 11.80s (includes signing + settlement)
+- USDC Contract: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+- Explorer: https://sepolia.basescan.org/tx/0xf841bb9fe9f1db4ebc7a787055fc286ce23b704d40c417abacbeacd3081d6cb6
+
+**Balances**:
+
+- Buyer: 9.93 → 9.92 USDC (-0.01)
+- Seller: 0.07 → 0.08 USDC (+0.01)
+
+**Verification** (via Blockscout):
+✓ Transaction confirmed on Base Sepolia (chain 84532)
+✓ Method: `transferWithAuthorization` (EIP-3009)
+✓ From: Facilitator (`0xB6A9...BF064`)
+✓ To: USDC Contract (`0x036C...CF7e`)
+✓ Token Transfer: Buyer → Seller (10,000 raw units = 0.01 USDC)
+✓ Decoded parameters match payment intent
+✓ Nonce: `0x695d338f671ac6...` (matches both signatures)
+✓ Status: Success
+✓ Seller endpoint: `/api/content/premium/base-sepolia`
+✓ Resource binding: `/api/content/premium/base-sepolia`
+
+---
+
+### ❌ Arc Testnet (Chain ID: 1243)
+
+**Status**: FAILED ✗
+
+**Error**: `FiatTokenV2: invalid signature`
+
+**Details**:
+
+- Attempted Block: N/A (transaction reverted during estimation)
+- USDC Contract: `0x3600000000000000000000000000000000000000`
+- Latency: 7.31s (failed before settlement)
+
+**Issue Analysis**:
+The EIP-3009 signature verification failed on-chain. Possible reasons:
+
+1. **Domain mismatch**: Arc's USDC contract may use different EIP-712 domain parameters (`name`, `version`) than expected
+2. **Non-standard USDC**: Arc may use a custom USDC implementation not fully EIP-3009 compatible
+3. **Signature format**: Arc might require different signature parameters
+
+**Next Steps**:
+
+- Query Arc USDC contract for its actual EIP-712 domain
+- Check if Arc USDC implements `EIP712_VERSION()` function
+- Verify Arc USDC supports `transferWithAuthorization`
+- Consider fallback to standard `transferFrom` for Arc
+
+**Seller endpoint**: `/api/content/premium/arc`
+
+---
+
+## Summary
+
+| Chain            | Chain ID | Status        | Tx Hash           | Block      | Gas     | Latency |
+| ---------------- | -------- | ------------- | ----------------- | ---------- | ------- | ------- |
+| **Polygon Amoy** | 80002    | ✅ PASS       | `0xdedce...2a75a` | 29,364,700 | 102,820 | 21.22s  |
+| **Base Sepolia** | 84532    | ✅ PASS       | `0xf841b...d6cb6` | 34,009,586 | 85,720  | 11.80s  |
+| **Arc Testnet**  | 1243     | ❌ FAIL       | N/A               | N/A        | N/A     | N/A     |
+| Arbitrum Sepolia | 421614   | 🔄 Not Tested | -                 | -          | -       | -       |
+| Optimism Sepolia | 11155420 | 🔄 Not Tested | -                 | -          | -       | -       |
+| Ethereum Sepolia | 11155111 | 🔄 Not Tested | -                 | -          | -       | -       |
+
+## Multi-Chain Architecture Validation
+
+### ✓ Confirmed Working
+
+1. **Single Server Deployment**: One facilitator + one seller handles multiple chains
+2. **Chain-Specific Endpoints**: Buyers explicitly choose payment chain
+3. **Dynamic Provider Selection**: Facilitator auto-selects RPC based on `chainId`
+4. **Cross-Chain USDC Compatibility**: Works with different USDC deployments (Base, Polygon)
+5. **Dynamic Domain Resolution**: Correctly queries each chain's USDC for EIP-712 domain
+6. **No Server Restart**: Tested Polygon → Arc → Base without restarting services
+7. **Resource Binding**: Each chain has its own resource path in x402 signature
+
+### 🎯 Performance Comparison
+
+**Gas Efficiency**: Base Sepolia (85,720) < Polygon Amoy (102,820)
+
+- Base Sepolia: ~17% lower gas usage
+- Likely due to chain-specific optimizations
+
+**Latency**: Base Sepolia (11.80s) < Polygon Amoy (21.22s)
+
+- Base Sepolia: ~44% faster
+- Polygon Amoy has higher block time
+
+### 📊 Key Insights
+
+1. **Multi-chain works without code changes** - Same codebase handles both chains
+2. **Gas costs vary significantly** - Chain choice matters for cost optimization
+3. **Latency differences are substantial** - Base Sepolia is almost 2x faster
+4. **Arc needs special handling** - Custom USDC implementations require investigation
+
+## Next Steps
+
+1. **Arc Testnet**: Investigate USDC contract compatibility
+2. **Additional Chains**: Test Arbitrum Sepolia, Optimism Sepolia
+3. **Documentation**: Update README with multi-chain usage examples
+4. **Performance**: Consider chain recommendation based on gas/latency trade-offs
