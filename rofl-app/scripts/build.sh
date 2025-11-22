@@ -1,31 +1,19 @@
 #!/bin/bash
-# Build ROFL app (TypeScript → JavaScript → Docker → ROFL bundle)
+# Build ROFL app Docker image
 
 set -e
 
 cd "$(dirname "$0")/.."
 
-echo "🏗️  Building x402 TEE ROFL app..."
+echo "🏗️  Building x402-tee-rofl-app..."
+echo "Building from: $(pwd)"
 
-# Step 1: Build TypeScript
-echo ""
-echo "Step 1: Compiling TypeScript..."
-npm run build
+# Build Docker image
+docker build -t x402-tee-rofl-app:latest .
 
-# Step 2: Build Docker image
-echo ""
-echo "Step 2: Building Docker image..."
-docker build -t x402-tee-rofl:latest .
-
-# Step 3: Build ROFL bundle
-echo ""
-echo "Step 3: Building ROFL bundle..."
-oasis rofl build
-
-echo ""
-echo "✅ Build complete!"
+echo "✅ Docker image built successfully"
 echo ""
 echo "Next steps:"
-echo "  1. Set secrets: ./scripts/set-secrets.sh"
-echo "  2. Deploy to ROFL: ./scripts/deploy.sh"
-
+echo "  1. Test locally: docker run -p 8080:8080 x402-tee-rofl-app:latest"
+echo "  2. Set secrets: ./scripts/set-secrets.sh"
+echo "  3. Deploy to ROFL: ./scripts/deploy.sh"

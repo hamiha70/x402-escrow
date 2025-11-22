@@ -1,26 +1,27 @@
 /**
- * Balance Query Route (runs inside ROFL)
+ * Balance Query Route (ROFL App)
+ * 
+ * Allows buyers to query their balance from TEE ledger.
  */
 
 import express from "express";
 import { ethers } from "ethers";
-import { createLogger } from "../utils/logger.js";
+import { logger } from "../utils/logger.js";
 import { TEELedgerManager } from "../services/TEELedgerManager.js";
-
-const logger = createLogger("rofl-balance");
 
 export function createBalanceRouter(ledger: TEELedgerManager) {
 	const router = express.Router();
 
 	/**
 	 * Get buyer balance
-	 * Query params: ?chain=84532 (optional)
+	 * Query params: ?chain=84532 (optional, returns all chains if not specified)
 	 */
 	router.get("/:address", async (req, res) => {
 		try {
 			const address = req.params.address;
 			const chainId = req.query.chain ? Number(req.query.chain) : null;
 
+			// Validate address format
 			if (!ethers.isAddress(address)) {
 				return res.status(400).json({ error: "Invalid address format" });
 			}
@@ -37,7 +38,7 @@ export function createBalanceRouter(ledger: TEELedgerManager) {
 				});
 			}
 
-			// Specific chain
+			// If specific chain requested, return just that chain
 			if (chainId !== null) {
 				const chainAccount = account.chains[chainId];
 				if (!chainAccount) {
@@ -61,7 +62,7 @@ export function createBalanceRouter(ledger: TEELedgerManager) {
 				});
 			}
 
-			// All chains
+			// Return all chains
 			const totalBalance = Object.values(account.chains).reduce(
 				(sum, chainAccount) => sum + BigInt(chainAccount.balance),
 				0n
@@ -80,6 +81,20 @@ export function createBalanceRouter(ledger: TEELedgerManager) {
 		}
 	});
 
+	/**
+	 * Get ledger statistics
+	 */
+	router.get("/", async (req, res) => {
+		try {
+			const stats = ledger.getStats();
+			return res.status(200).json(stats);
+		} catch (error) {
+			logger.error(`Stats query failed: ${error}`);
+			return res.status(500).json({
+				error: "Internal server error",
+			});
+		}
+	});
+
 	return router;
 }
-

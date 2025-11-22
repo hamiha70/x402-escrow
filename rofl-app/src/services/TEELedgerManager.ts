@@ -1,5 +1,5 @@
 /**
- * TEE Ledger Manager
+ * TEE Ledger Manager (ROFL App)
  * 
  * File-based accounting system for TEE facilitator scheme.
  * Maintains private buyer balances and spending history in sealed TEE storage.
@@ -7,61 +7,15 @@
 
 import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
 import { ethers } from "ethers";
-import { createLogger } from "../utils/logger.js";
-
-const logger = createLogger("tee-ledger");
-
-export interface DepositRecord {
-	amount: string;
-	timestamp: number;
-	chain: number;
-	txHash: string;
-}
-
-export interface SpendRecord {
-	seller: string;
-	amount: string;
-	resource: string;
-	timestamp: number;
-	chain: number;
-	txHash: string;
-	intentHash: string;
-}
-
-export interface ChainAccount {
-	balance: string;
-	nonce: number;
-	deposits: DepositRecord[];
-	spends: SpendRecord[];
-}
-
-export interface BuyerAccount {
-	chains: Record<number, ChainAccount>;
-}
-
-export interface ActivityLogEntry {
-	timestamp: number;
-	type: "deposit" | "spend";
-	buyer: string;
-	chain: number;
-	amount: string;
-	txHash: string;
-	ledgerHash: string;
-	seller?: string;
-	resource?: string;
-	intentHash?: string;
-}
-
-export interface Ledger {
-	buyers: Record<string, BuyerAccount>;
-	activityLog: ActivityLogEntry[];
-	metadata: {
-		lastUpdated: number;
-		totalDeposits: string;
-		totalSpends: string;
-		ledgerHash: string;
-	};
-}
+import { logger } from "../utils/logger.js";
+import type {
+	DepositRecord,
+	SpendRecord,
+	ChainAccount,
+	BuyerAccount,
+	ActivityLogEntry,
+	Ledger,
+} from "../utils/types.js";
 
 export class TEELedgerManager {
 	private ledgerPath: string;
@@ -386,4 +340,3 @@ export class TEELedgerManager {
 		return this.ledger.activityLog.slice(-limit);
 	}
 }
-

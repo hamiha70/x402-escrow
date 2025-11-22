@@ -1,9 +1,9 @@
-name: x402-tee-facilitator
+name: x402-tee-rofl-app
 version: 1.0.0
 runtime: container
 image: ./Dockerfile
 
-# HTTP endpoints exposed by TEE
+# HTTP endpoints exposed by ROFL app (inside TEE)
 endpoints:
   - path: /settle
     methods: [POST]
@@ -22,14 +22,14 @@ endpoints:
 
 # Secrets managed by ROFL KMS (encrypted in TEE)
 secrets:
-  # RPC URLs
+  # RPC URLs for blockchain access
   - BASE_SEPOLIA_RPC
   - POLYGON_AMOY_RPC
   - ARBITRUM_SEPOLIA_RPC
   - OPTIMISM_SEPOLIA_RPC
   - ARC_TESTNET_RPC
   
-  # Facilitator private keys (one per chain)
+  # TEE facilitator private keys (one per chain)
   - TEE_FACILITATOR_PRIVATE_KEY_BASE
   - TEE_FACILITATOR_PRIVATE_KEY_POLYGON
   - TEE_FACILITATOR_PRIVATE_KEY_ARBITRUM
@@ -49,9 +49,6 @@ secrets:
   - USDC_ARBITRUM_SEPOLIA
   - USDC_OPTIMISM_SEPOLIA
   - USDC_ARC_TESTNET
-  
-  # Seller allowlist
-  - SELLER_WALLET_ADDRESS
 
 # Sealed storage (encrypted by TEE)
 storage:
@@ -62,4 +59,3 @@ storage:
 # Network configuration
 network:
   allow_outbound: true  # Required for RPC calls to external chains
-

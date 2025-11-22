@@ -1,13 +1,11 @@
 /**
- * Omnibus Vault Manager
+ * Omnibus Vault Manager (ROFL App)
  * 
  * Handles interactions with OmnibusVault contracts across multiple chains.
  */
 
 import { ethers } from "ethers";
-import { createLogger } from "../utils/logger.js";
-
-const logger = createLogger("omnibus-vault");
+import { logger } from "../utils/logger.js";
 
 const OMNIBUS_VAULT_ABI = [
 	"function deposit(uint256 amount) external",
@@ -83,7 +81,7 @@ export class OmnibusVaultManager {
 		const tx = await vault.withdrawToSeller(seller, amount, intentHash);
 		const receipt = await tx.wait();
 
-		logger.info(`Withdrawal successful: ${tx.hash}`);
+		logger.success(`Withdrawal successful: ${tx.hash}`);
 		logger.info(`Gas used: ${receipt.gasUsed.toString()}`);
 
 		return tx.hash;
@@ -122,7 +120,7 @@ export class OmnibusVaultManager {
 		const tx = await vault.publishLedgerHash(ledgerHash);
 		const receipt = await tx.wait();
 
-		logger.info(`Ledger hash published: ${tx.hash}`);
+		logger.success(`Ledger hash published: ${tx.hash}`);
 
 		return tx.hash;
 	}
@@ -144,9 +142,8 @@ export class OmnibusVaultManager {
 		const tx = await vault.authorizeSeller(seller, status);
 		const receipt = await tx.wait();
 
-		logger.info(`Seller authorization updated: ${tx.hash}`);
+		logger.success(`Seller authorization updated: ${tx.hash}`);
 
 		return tx.hash;
 	}
 }
-

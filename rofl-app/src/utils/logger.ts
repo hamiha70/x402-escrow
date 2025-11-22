@@ -1,5 +1,5 @@
 /**
- * Simple logger for ROFL app (no dependencies)
+ * Simple logger for ROFL app (no dependencies on main project)
  */
 
 const colors = {
@@ -12,30 +12,36 @@ const colors = {
 	cyan: "\x1b[36m",
 };
 
-export function createLogger(name: string) {
-	const timestamp = () => new Date().toISOString();
-
-	return {
-		info: (message: string) => {
-			console.log(
-				`${colors.dim}${timestamp()}${colors.reset} ${colors.blue}[INFO]${colors.reset} ${colors.cyan}[${name}]${colors.reset} ${message}`
-			);
-		},
-		error: (message: string) => {
-			console.error(
-				`${colors.dim}${timestamp()}${colors.reset} ${colors.red}[ERROR]${colors.reset} ${colors.cyan}[${name}]${colors.reset} ${message}`
-			);
-		},
-		warn: (message: string) => {
-			console.warn(
-				`${colors.dim}${timestamp()}${colors.reset} ${colors.yellow}[WARN]${colors.reset} ${colors.cyan}[${name}]${colors.reset} ${message}`
-			);
-		},
-		success: (message: string) => {
-			console.log(
-				`${colors.dim}${timestamp()}${colors.reset} ${colors.green}[SUCCESS]${colors.reset} ${colors.cyan}[${name}]${colors.reset} ${message}`
-			);
-		},
-	};
+function timestamp(): string {
+	return new Date().toISOString();
 }
 
+export const logger = {
+	info: (message: string, ...args: any[]) => {
+		console.log(
+			`${colors.dim}${timestamp()}${colors.reset} ${colors.blue}[INFO]${colors.reset} ${colors.cyan}[tee-rofl]${colors.reset} ${message}`,
+			...args
+		);
+	},
+
+	success: (message: string, ...args: any[]) => {
+		console.log(
+			`${colors.dim}${timestamp()}${colors.reset} ${colors.green}[SUCCESS]${colors.reset} ${colors.cyan}[tee-rofl]${colors.reset} ${message}`,
+			...args
+		);
+	},
+
+	warn: (message: string, ...args: any[]) => {
+		console.warn(
+			`${colors.dim}${timestamp()}${colors.reset} ${colors.yellow}[WARN]${colors.reset} ${colors.cyan}[tee-rofl]${colors.reset} ${message}`,
+			...args
+		);
+	},
+
+	error: (message: string, ...args: any[]) => {
+		console.error(
+			`${colors.dim}${timestamp()}${colors.reset} ${colors.red}[ERROR]${colors.reset} ${colors.cyan}[tee-rofl]${colors.reset} ${message}`,
+			...args
+		);
+	},
+};

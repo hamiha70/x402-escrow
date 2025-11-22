@@ -1,17 +1,16 @@
 /**
- * TEE Settlement Route (runs inside ROFL)
+ * TEE Settlement Route (ROFL App)
  * 
- * Handles payment settlement for x402-tee-facilitator scheme.
+ * Handles payment settlement inside TEE.
+ * Verifies EIP-712 signatures, checks balances, and settles to sellers.
  */
 
 import express from "express";
 import { ethers } from "ethers";
-import { createLogger } from "../utils/logger.js";
+import { logger } from "../utils/logger.js";
 import type { TEEPaymentPayload } from "../utils/types.js";
 import { TEELedgerManager } from "../services/TEELedgerManager.js";
 import { OmnibusVaultManager } from "../services/OmnibusVaultManager.js";
-
-const logger = createLogger("rofl-settle");
 
 export function createSettleRouter(
 	ledger: TEELedgerManager,
@@ -31,7 +30,7 @@ export function createSettleRouter(
 
 			const intent = payload.intentStruct;
 
-			logger.info(`Processing payment for buyer ${intent.buyer}`);
+			logger.info(`Processing TEE payment for buyer ${intent.buyer}`);
 			logger.info(`Seller: ${intent.seller}, Amount: ${intent.amount}, Chain: ${intent.chainId}`);
 
 			// 1. Verify intent hash matches struct
@@ -64,7 +63,7 @@ export function createSettleRouter(
 
 			// 2. Verify EIP-712 signature
 			const vaultAddress = vaultManager.getVaultAddress(intent.chainId);
-
+			
 			const domain = {
 				name: "x402-tee-facilitator",
 				version: "1",
@@ -105,14 +104,14 @@ export function createSettleRouter(
 				return res.status(400).json({ error: "Signature mismatch" });
 			}
 
-			logger.info(`✓ Signature valid`);
+			logger.info(`✓ Signature valid (recovered: ${recovered})`);
 
 			// 3. Check expiry
 			if (Math.floor(Date.now() / 1000) > intent.expiry) {
 				return res.status(400).json({ error: "Payment intent expired" });
 			}
 
-			// 4. Check balance in ledger FOR THIS CHAIN
+			// 4. Check balance in ledger for this chain
 			const balance = ledger.getBalance(intent.buyer, intent.chainId);
 			if (balance < BigInt(intent.amount)) {
 				logger.warn(
@@ -140,7 +139,7 @@ export function createSettleRouter(
 				});
 			}
 
-			logger.info(`✓ Seller authorized`);
+			logger.info(`✓ Seller authorized: ${intent.seller}`);
 
 			// 6. Settle on-chain (withdraw from omnibus vault to seller)
 			let txHash: string;
@@ -159,7 +158,7 @@ export function createSettleRouter(
 				});
 			}
 
-			logger.info(`✓ Settlement successful: ${txHash}`);
+			logger.success(`✓ Settlement successful: ${txHash}`);
 
 			// 7. Update ledger (deduct from buyer on this chain)
 			try {
@@ -174,12 +173,12 @@ export function createSettleRouter(
 				);
 			} catch (error) {
 				logger.error(`Ledger update failed: ${error}`);
-				// Settlement already happened; log but continue
+				// Settlement already happened on-chain; log error but return success
 			}
 
 			const newBalance = ledger.getBalance(intent.buyer, intent.chainId);
 
-			logger.info(`✓ New balance on chain ${intent.chainId}: ${newBalance}`);
+			logger.success(`✓ New balance on chain ${intent.chainId}: ${newBalance}`);
 
 			// 8. Return receipt
 			return res.status(200).json({
@@ -202,4 +201,3 @@ export function createSettleRouter(
 
 	return router;
 }
-
