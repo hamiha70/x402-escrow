@@ -53,7 +53,17 @@ export type DemoEvent =
 			role: DemoEventRole;
 			timestamp: number;
 	  }
-	| { type: "complete"; result: any; metrics: any; timestamp: number }
+	| { 
+			type: "complete"; 
+			result: any; 
+			metrics: any; 
+			timing: {
+				requestToService: number;
+				requestToPay: number | string;
+				totalTime: number;
+			};
+			timestamp: number 
+	  }
 	| { type: "error"; message: string; timestamp: number };
 
 /**
@@ -64,6 +74,8 @@ export async function runExactFlow(
 	emitEvent: (event: DemoEvent) => void
 ): Promise<void> {
 	const startTime = Date.now();
+	let serviceDeliveredTime = 0;
+	let settlementTime = 0;
 
 	try {
 		// Validate environment variables
@@ -297,6 +309,7 @@ export async function runExactFlow(
 		});
 
 		const receipt = await tx.wait();
+		settlementTime = Date.now();
 
 		emitEvent({
 			type: "transaction",
@@ -328,8 +341,11 @@ export async function runExactFlow(
 			timestamp: Date.now(),
 		});
 
+		serviceDeliveredTime = Date.now();
 		const endTime = Date.now();
 		const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+		const requestToService = ((serviceDeliveredTime - startTime) / 1000).toFixed(2);
+		const requestToPay = ((settlementTime - startTime) / 1000).toFixed(2);
 
 		emitEvent({
 			type: "complete",
@@ -342,6 +358,11 @@ export async function runExactFlow(
 				gasUsed: receipt.gasUsed.toString(),
 				transactionHash: tx.hash,
 				explorerUrl: `${networkConfig.explorerUrl}/${tx.hash}`,
+			},
+			timing: {
+				requestToService: parseFloat(requestToService),
+				requestToPay: parseFloat(requestToPay),
+				totalTime: parseFloat(totalTime),
 			},
 			timestamp: Date.now(),
 		});
@@ -369,6 +390,7 @@ export async function runEscrowDeferredFlow(
 	emitEvent: (event: DemoEvent) => void
 ): Promise<void> {
 	const startTime = Date.now();
+	let serviceDeliveredTime = 0;
 
 	try {
 		// Validate environment variables
@@ -575,8 +597,10 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 
+		serviceDeliveredTime = Date.now();
 		const endTime = Date.now();
 		const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+		const requestToService = ((serviceDeliveredTime - startTime) / 1000).toFixed(2);
 
 		emitEvent({
 			type: "complete",
@@ -590,6 +614,11 @@ export async function runEscrowDeferredFlow(
 				gasUsed: "0 (deferred settlement)",
 				settlementStatus: "Queued for batch processing",
 				note: "Transaction will be settled later with other payments",
+			},
+			timing: {
+				requestToService: parseFloat(requestToService),
+				requestToPay: "Deferred",
+				totalTime: parseFloat(totalTime),
 			},
 			timestamp: Date.now(),
 		});

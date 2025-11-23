@@ -10,6 +10,38 @@ let isRunning = false;
 let eventQueue = [];
 let isProcessingQueue = false;
 
+// Scheme characteristics for auto-derivation
+const SCHEME_CHARACTERISTICS = {
+	exact: {
+		serviceBeforeSettle: false,
+		batchSettle: false,
+		buyerNotOnchain: false, // Buyer IS onchain (bad)
+		escrowRequired: false,
+		trustlessFacilitator: true,
+	},
+	'escrow-deferred': {
+		serviceBeforeSettle: true,
+		batchSettle: true,
+		buyerNotOnchain: true,
+		escrowRequired: true, // Required (bad)
+		trustlessFacilitator: true,
+	},
+	tee: {
+		serviceBeforeSettle: true,
+		batchSettle: true,
+		buyerNotOnchain: true,
+		escrowRequired: false,
+		trustlessFacilitator: true,
+	},
+	zk: {
+		serviceBeforeSettle: true,
+		batchSettle: true,
+		buyerNotOnchain: true,
+		escrowRequired: false,
+		trustlessFacilitator: true,
+	},
+};
+
 // Initialize WebSocket connection
 function initWebSocket() {
 	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -219,10 +251,52 @@ function displayTransaction(event) {
 	}
 }
 
+// Update flow characteristics based on scheme
+function updateCharacteristics(scheme) {
+	const chars = SCHEME_CHARACTERISTICS[scheme];
+	if (!chars) return;
+	
+	// Service < Settle
+	updateCharacteristic('char-service-settle', chars.serviceBeforeSettle, true);
+	
+	// Batch Settle
+	updateCharacteristic('char-batch', chars.batchSettle, true);
+	
+	// Buyer not Onchain (good when true, bad when false)
+	updateCharacteristic('char-buyer-onchain', chars.buyerNotOnchain, true);
+	
+	// Escrow Required (BAD when true)
+	updateCharacteristic('char-escrow', chars.escrowRequired, false);
+	
+	// Trustless Facilitator
+	updateCharacteristic('char-trustless', chars.trustlessFacilitator, true);
+}
+
+// Update individual characteristic
+function updateCharacteristic(elementId, applies, isGoodWhenTrue) {
+	const el = document.getElementById(elementId);
+	if (!el) return;
+	
+	el.className = 'characteristic';
+	
+	if (applies) {
+		// Applies - show in bold with colored symbol
+		el.classList.add('applies');
+		if (isGoodWhenTrue) {
+			el.classList.add('good');
+		} else {
+			el.classList.add('bad');
+		}
+	} else {
+		// Doesn't apply - show in grey thin
+		el.classList.add('not-applies');
+	}
+}
+
 // Display completion
 function displayComplete(event) {
 	// Show metrics in control panel
-	showMetrics(event.metrics);
+	showMetrics(event);
 	
 	// Reset running state
 	isRunning = false;
@@ -252,12 +326,24 @@ function displayError(event) {
 	});
 }
 
-// Show metrics
-function showMetrics(metrics) {
+// Show metrics and characteristics
+function showMetrics(event) {
 	const metricsDiv = document.getElementById('metrics');
 	metricsDiv.style.display = 'block';
 	
-	document.getElementById('time').textContent = metrics.totalTime || '-';
+	const metrics = event.metrics || {};
+	const timing = event.timing || {};
+	
+	// Update timing
+	const requestToService = timing.requestToService 
+		? `${timing.requestToService.toFixed(2)}s`
+		: '-';
+	const requestToPay = typeof timing.requestToPay === 'string' 
+		? timing.requestToPay 
+		: `${timing.requestToPay.toFixed(2)}s`;
+	
+	document.getElementById('time').textContent = requestToService;
+	document.getElementById('time-to-pay').textContent = requestToPay;
 	document.getElementById('gas').textContent = formatNumber(metrics.gasUsed) || '-';
 	
 	const txLink = document.getElementById('tx-link');
@@ -268,6 +354,9 @@ function showMetrics(metrics) {
 	} else {
 		txLink.style.display = 'none';
 	}
+	
+	// Update characteristics
+	updateCharacteristics(currentScheme);
 }
 
 // Clear events from all columns

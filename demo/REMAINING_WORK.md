@@ -24,6 +24,7 @@
 **Add two timing measurements**:
 
 1. **Request-to-Service**: When content is delivered
+
    - x402-exact: ~9s (waits for blockchain)
    - Escrow-deferred: ~0.08s (instant)
 
@@ -32,6 +33,7 @@
    - Escrow-deferred: Deferred (shown as "Queued")
 
 **Implementation**:
+
 - Capture timestamps at start, service delivery, and settlement
 - Display both metrics in Results panel
 - Format: "Request→Service: 0.08s | Request→Pay: Deferred"
@@ -41,18 +43,22 @@
 **Always show in same order** (5 items):
 
 1. ⚡ **Service < Settle** (GOOD when true)
+
    - exact: ❌ False → Grey, thin font
    - escrow-deferred: ✅ True → Green ✅, bold font
 
 2. 📦 **Batch Settle** (GOOD when true)
+
    - exact: ❌ False → Grey, thin font
    - escrow-deferred: ✅ True → Green ✅, bold font
 
 3. 🔒 **Buyer not Onchain** (GOOD when true)
+
    - exact: ❌ False → Red ❌, bold font (buyer IS onchain = BAD)
    - escrow-deferred: ✅ True → Green ✅, bold font
 
 4. 🏦 **Escrow Required** (BAD when true)
+
    - exact: ❌ False → Grey, thin font
    - escrow-deferred: ✅ True → Red ❌, bold font (requires pre-deposit = BAD)
 
@@ -65,34 +71,34 @@
 
 ```javascript
 const SCHEME_CHARACTERISTICS = {
-  'exact': {
+  exact: {
     serviceBeforeSettle: false,
     batchSettle: false,
-    buyerNotOnchain: false,  // Buyer IS onchain (bad)
+    buyerNotOnchain: false, // Buyer IS onchain (bad)
     escrowRequired: false,
-    trustlessFacilitator: true
+    trustlessFacilitator: true,
   },
-  'escrow-deferred': {
+  "escrow-deferred": {
     serviceBeforeSettle: true,
     batchSettle: true,
     buyerNotOnchain: true,
-    escrowRequired: true,    // Required (bad)
-    trustlessFacilitator: true
+    escrowRequired: true, // Required (bad)
+    trustlessFacilitator: true,
   },
-  'tee': {
-    serviceBeforeSettle: true,
-    batchSettle: true,
-    buyerNotOnchain: true,
-    escrowRequired: false,
-    trustlessFacilitator: true
-  },
-  'zk': {
+  tee: {
     serviceBeforeSettle: true,
     batchSettle: true,
     buyerNotOnchain: true,
     escrowRequired: false,
-    trustlessFacilitator: true
-  }
+    trustlessFacilitator: true,
+  },
+  zk: {
+    serviceBeforeSettle: true,
+    batchSettle: true,
+    buyerNotOnchain: true,
+    escrowRequired: false,
+    trustlessFacilitator: true,
+  },
 };
 ```
 
@@ -176,6 +182,7 @@ vs. for exact:
 ```
 
 **Benefits**:
+
 - Explain x402 protocol details
 - Show actual payloads for education
 - Copy for testing
@@ -202,12 +209,14 @@ vs. for exact:
 ## 📋 Implementation Order
 
 ### Phase 2A: Timing Metrics (30 min)
+
 1. Add timing capture to orchestrator
 2. Calculate Request→Service and Request→Pay
 3. Display in results panel
 4. Test on both schemes
 
 ### Phase 2B: Flow Characteristics (45 min)
+
 1. Add characteristic derivation logic
 2. Create characteristics panel HTML
 3. Style with green/red/grey symbols
@@ -215,6 +224,7 @@ vs. for exact:
 5. Show after flow completes (or 4-5s idle)
 
 ### Phase 3: Hover Modal (45 min)
+
 1. Add click handlers to all events
 2. Create modal overlay component
 3. Format JSON with syntax highlighting
@@ -228,4 +238,3 @@ vs. for exact:
 **Next**: Should I implement Phase 2A (Timing) + 2B (Characteristics)?
 
 This will make the demo **much more impactful** by showing the trade-offs clearly!
-

@@ -46,12 +46,41 @@
           </div>
         </div>
 
+        <!-- Flow Characteristics -->
+        <div class="characteristics-panel" id="characteristics">
+          <h3>FLOW CHARACTERISTICS</h3>
+          <div class="characteristic not-applies" id="char-service-settle">
+            <span class="symbol">⚡</span>
+            <span class="text">Service < Settle</span>
+          </div>
+          <div class="characteristic not-applies" id="char-batch">
+            <span class="symbol">📦</span>
+            <span class="text">Batch Settle</span>
+          </div>
+          <div class="characteristic not-applies" id="char-buyer-onchain">
+            <span class="symbol">🔒</span>
+            <span class="text">Buyer not Onchain</span>
+          </div>
+          <div class="characteristic not-applies" id="char-escrow">
+            <span class="symbol">🏦</span>
+            <span class="text">Escrow Required</span>
+          </div>
+          <div class="characteristic not-applies" id="char-trustless">
+            <span class="symbol">🛡️</span>
+            <span class="text">Trustless Facilitator</span>
+          </div>
+        </div>
+
         <!-- Results Metrics -->
         <div class="results-panel" id="metrics" style="display: none">
-          <h3>📊 Results</h3>
+          <h3>📊 RESULTS</h3>
           <div class="result-item">
-            <span class="label">⏱️ Time:</span>
+            <span class="label">⏱️ Request→Service:</span>
             <span class="value" id="time">-</span>
+          </div>
+          <div class="result-item">
+            <span class="label">⏱️ Request→Pay:</span>
+            <span class="value" id="time-to-pay">-</span>
           </div>
           <div class="result-item">
             <span class="label">⛽ Gas:</span>
