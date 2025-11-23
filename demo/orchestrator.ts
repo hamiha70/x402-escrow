@@ -476,6 +476,15 @@ export async function runEscrowDeferredFlow(
 		const balance = await vaultContract.deposits(buyerAddress);
 		logger.info(`Vault balance: ${balance.toString()} (${ethers.formatUnits(balance, 6)} USDC)`);
 
+		// Step 2: Seller responds with 402
+		emitEvent({
+			type: "step",
+			step: 2,
+			description: "Require payment",
+			role: "seller",
+			timestamp: Date.now(),
+		});
+
 		const paymentRequirements: PaymentRequirements = {
 			scheme: "x402-escrow-deferred",
 			seller: sellerAddress,
@@ -493,6 +502,10 @@ export async function runEscrowDeferredFlow(
 		emitEvent({
 			type: "http-response",
 			status: 402,
+			headers: {
+				"Content-Type": "application/json",
+				"x-payment-request": "payment required",
+			},
 			body: {
 				error: "Payment required",
 				PaymentRequirements: [paymentRequirements],
@@ -501,10 +514,10 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 
-		// Step 2: Sign payment intent
+		// Step 3: Sign payment intent
 		emitEvent({
 			type: "step",
-			step: 2,
+			step: 3,
 			description: "Sign payment intent",
 			role: "buyer",
 			timestamp: Date.now(),
@@ -592,7 +605,7 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 
-		// Step 5: Seller delivers content instantly
+		// Step 5: Seller delivers content instantly  
 		emitEvent({
 			type: "step",
 			step: 5,
