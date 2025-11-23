@@ -289,12 +289,24 @@ main.split-layout {
 	color: #2D3436;
 }
 
+.characteristic.applies.good .symbol {
+	color: #4CAF50;
+	font-size: 0;
+}
+
 .characteristic.applies.good .symbol::before {
-	content: '✅ ';
+	content: '✅';
+	font-size: 1.2rem;
+}
+
+.characteristic.applies.bad .symbol {
+	color: #F44336;
+	font-size: 0;
 }
 
 .characteristic.applies.bad .symbol::before {
-	content: '❌ ';
+	content: '❌';
+	font-size: 1.2rem;
 }
 
 /* Results panel (in control panel) */
