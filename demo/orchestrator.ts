@@ -299,7 +299,7 @@ export async function runExactFlow(
 			eip3009Signature
 		);
 
-		const explorerUrl = `https://www.oklink.com/amoy/tx/${tx.hash}`;
+		const explorerUrl = `https://amoy.polygonscan.com/tx/${tx.hash}`;
 
 		emitEvent({
 			type: "transaction",
