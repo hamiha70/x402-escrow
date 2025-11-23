@@ -295,8 +295,13 @@ function updateCharacteristic(elementId, applies, isGoodWhenTrue) {
 
 // Display completion
 function displayComplete(event) {
-	// Show metrics in control panel
+	// Show metrics and characteristics in control panel
 	showMetrics(event);
+	
+	// Show characteristics after short delay (let user see final events first)
+	setTimeout(() => {
+		updateCharacteristics(currentScheme);
+	}, 500);
 	
 	// Reset running state
 	isRunning = false;
@@ -471,6 +476,13 @@ document.addEventListener('DOMContentLoaded', () => {
 			btn.classList.remove('running');
 		});
 	});
+	
+	// Show default characteristics after 5 seconds if idle
+	setTimeout(() => {
+		if (!isRunning) {
+			updateCharacteristics('exact');
+		}
+	}, 5000);
 });
 
 // Handle page visibility (pause/resume WebSocket)
