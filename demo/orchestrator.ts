@@ -595,6 +595,31 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 
+		// Add to queue for batch settlement
+		const intentHash = ethers.keccak256(
+			ethers.AbiCoder.defaultAbiCoder().encode(
+				["address", "address", "uint256", "address", "bytes32", "uint256", "string", "uint256"],
+				[
+					intent.buyer,
+					intent.seller,
+					intent.amount,
+					intent.token,
+					intent.nonce,
+					intent.expiry,
+					intent.resource,
+					intent.chainId,
+				]
+			)
+		);
+
+		queue.add({
+			intent: intent,
+			signature: signature,
+			intentHash: intentHash,
+			vault: networkConfig.vaultAddress!,
+			chainId: networkConfig.chainId,
+		});
+
 		emitEvent({
 			type: "http-response",
 			status: 200,
