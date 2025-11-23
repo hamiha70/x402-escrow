@@ -189,6 +189,37 @@ app.post("/api/run-escrow-deferred", async (req, res) => {
 });
 
 /**
+ * Setup escrow - deposit to vault
+ */
+app.post("/api/setup-escrow", async (req, res) => {
+	const { network } = req.body;
+
+	if (!network) {
+		return res.status(400).json({ error: "Network slug required" });
+	}
+
+	logger.info(`Setting up escrow for ${network}`);
+
+	// Send immediate response
+	res.json({ success: true, message: "Deposit started", network });
+
+	// Run deposit in background and broadcast events
+	try {
+		const networkConfig = getNetworkConfig(network);
+		const { runEscrowSetup } = await import("./orchestrator.js");
+		await runEscrowSetup(networkConfig, broadcast);
+		logger.info("Escrow setup completed successfully");
+	} catch (error: any) {
+		logger.error("Error in escrow setup:", error);
+		broadcast({
+			type: "error",
+			message: error.message || "Unknown error occurred",
+			timestamp: Date.now(),
+		});
+	}
+});
+
+/**
  * Settle batch of pending payments
  */
 app.post("/api/settle-batch", async (req, res) => {

@@ -149,6 +149,33 @@ main.split-layout {
 	opacity: 0.6;
 }
 
+/* Setup escrow button */
+.setup-button {
+	width: 100%;
+	margin-top: 0.75rem;
+	padding: 0.75rem;
+	background: linear-gradient(135deg, #4CAF50 0%, #45A049 100%);
+	border: none;
+	border-radius: 8px;
+	color: white;
+	font-size: 0.9rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: all 0.2s;
+	box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.setup-button:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.setup-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
 /* Scheme info panel */
 .scheme-info {
 	background: #FFF5F5;

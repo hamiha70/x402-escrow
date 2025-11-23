@@ -820,3 +820,127 @@ export async function runBatchSettlement(
 		});
 	}
 }
+
+/**
+ * Setup escrow - buyer deposits to vault
+ */
+export async function runEscrowSetup(
+	networkConfig: NetworkConfig,
+	emitEvent: (event: DemoEvent) => void
+): Promise<void> {
+	try {
+		const buyerPrivateKey = process.env.BUYER_PRIVATE_KEY!;
+		const buyerAddress = process.env.BUYER_WALLET_ADDRESS!;
+
+		const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
+		const buyerWallet = new ethers.Wallet(buyerPrivateKey, provider);
+
+		if (!networkConfig.vaultAddress) {
+			throw new Error(`Vault not deployed on ${networkConfig.name}`);
+		}
+
+		// Deposit amount: 1 USDC
+		const depositAmount = ethers.parseUnits("1", 6);
+
+		// Approve USDC
+		const usdcAbi = [
+			"function approve(address spender, uint256 amount) external returns (bool)",
+			"function allowance(address owner, address spender) view returns (uint256)",
+		];
+		const usdcContract = new ethers.Contract(
+			networkConfig.usdcAddress,
+			usdcAbi,
+			buyerWallet
+		);
+
+		emitEvent({
+			type: "step",
+			step: 0,
+			description: "Approve USDC",
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
+		const approveTx = await usdcContract.approve(networkConfig.vaultAddress, depositAmount);
+		await approveTx.wait();
+
+		// Deposit to vault
+		emitEvent({
+			type: "step",
+			step: 0,
+			description: "Deposit to vault",
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
+		const vaultAbi = ["function deposit(uint256 amount) external"];
+		const vaultContract = new ethers.Contract(
+			networkConfig.vaultAddress,
+			vaultAbi,
+			buyerWallet
+		);
+
+		const depositTx = await vaultContract.deposit(depositAmount);
+		
+		const explorerUrl =
+			networkConfig.chainId === 80002
+				? `https://amoy.polygonscan.com/tx/${depositTx.hash}`
+				: networkConfig.chainId === 5042002
+				? `https://testnet.arcscan.net/tx/${depositTx.hash}`
+				: `${networkConfig.explorerUrl}/${depositTx.hash}`;
+
+		emitEvent({
+			type: "transaction",
+			hash: depositTx.hash,
+			explorer: explorerUrl,
+			status: "pending",
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
+		const receipt = await depositTx.wait();
+
+		emitEvent({
+			type: "transaction",
+			hash: depositTx.hash,
+			explorer: explorerUrl,
+			status: "confirmed",
+			gasUsed: receipt.gasUsed.toString(),
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
+		emitEvent({
+			type: "complete",
+			result: {
+				deposited: "1 USDC",
+				vault: networkConfig.vaultAddress,
+			},
+			metrics: {
+				totalTime: "Setup complete",
+				gasUsed: receipt.gasUsed.toString(),
+				transactionHash: depositTx.hash,
+				explorerUrl: explorerUrl,
+			},
+			timing: {
+				requestToService: 0,
+				requestToPay: 0,
+				totalTime: 0,
+			},
+			timestamp: Date.now(),
+		});
+	} catch (error: any) {
+		logger.error("Error in escrow setup:", error);
+		const errorMessage = error.message || error.toString() || "Unknown error occurred";
+		logger.error("Error details:", {
+			message: errorMessage,
+			stack: error.stack,
+			code: error.code,
+		});
+		emitEvent({
+			type: "error",
+			message: errorMessage,
+			timestamp: Date.now(),
+		});
+	}
+}

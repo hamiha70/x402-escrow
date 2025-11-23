@@ -513,6 +513,14 @@ document.addEventListener('DOMContentLoaded', () => {
 				return;
 			}
 			
+			// Show setup button for escrow-deferred
+			const setupBtn = document.getElementById('setup-escrow-btn');
+			if (scheme === 'escrow-deferred') {
+				setupBtn.style.display = 'block';
+			} else {
+				setupBtn.style.display = 'none';
+			}
+			
 			// Update active state
 			document.querySelectorAll('.scheme-btn').forEach(b => {
 				b.classList.remove('running');
@@ -529,6 +537,46 @@ document.addEventListener('DOMContentLoaded', () => {
 			btn.classList.remove('running');
 		});
 	});
+	
+	// Setup escrow button - deposit to vault
+	const setupEscrowBtn = document.getElementById('setup-escrow-btn');
+	if (setupEscrowBtn) {
+		setupEscrowBtn.addEventListener('click', async () => {
+			if (isRunning) return;
+			
+			isRunning = true;
+			setupEscrowBtn.disabled = true;
+			setupEscrowBtn.textContent = '⏳ Depositing...';
+			
+			const network = document.getElementById('network').value;
+			
+			try {
+				const response = await fetch('/api/setup-escrow', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ network })
+				});
+				
+				const data = await response.json();
+				
+				if (!response.ok) {
+					throw new Error(data.error || 'Failed to setup escrow');
+				}
+				
+				setupEscrowBtn.textContent = '✅ Escrow Ready';
+				setTimeout(() => {
+					setupEscrowBtn.style.display = 'none';
+				}, 2000);
+			} catch (error) {
+				console.error('Error setting up escrow:', error);
+				alert(error.message);
+				setupEscrowBtn.disabled = false;
+				setupEscrowBtn.textContent = '💰 Setup Escrow (Deposit)';
+			} finally {
+				isRunning = false;
+			}
+		});
+	}
 	
 	// Settle batch button
 	const settleBatchBtn = document.getElementById('settle-batch-btn');
