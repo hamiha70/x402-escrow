@@ -234,7 +234,9 @@ function displayTransaction(event) {
 	if (event.gasUsed) {
 		content += `<br><small>⛽ ${formatNumber(event.gasUsed)} gas</small>`;
 	}
-	content += `<br><a href="${event.explorer}" target="_blank" style="font-size:0.75rem">🔗 Explorer</a>`;
+	if (event.explorer) {
+		content += `<br><a href="${event.explorer}" target="_blank" rel="noopener noreferrer" style="font-size:0.75rem">🔗 Explorer</a>`;
+	}
 	
 	if (existingTx) {
 		// Update existing transaction status

@@ -299,10 +299,12 @@ export async function runExactFlow(
 			eip3009Signature
 		);
 
+		const explorerUrl = `https://www.oklink.com/amoy/tx/${tx.hash}`;
+
 		emitEvent({
 			type: "transaction",
 			hash: tx.hash,
-			explorer: `${networkConfig.explorerUrl}/${tx.hash}`,
+			explorer: explorerUrl,
 			status: "pending",
 			role: "facilitator",
 			timestamp: Date.now(),
@@ -314,7 +316,7 @@ export async function runExactFlow(
 		emitEvent({
 			type: "transaction",
 			hash: tx.hash,
-			explorer: `${networkConfig.explorerUrl}/${tx.hash}`,
+			explorer: explorerUrl,
 			status: "confirmed",
 			gasUsed: receipt.gasUsed.toString(),
 			role: "facilitator",
@@ -357,7 +359,7 @@ export async function runExactFlow(
 				totalTime: `${totalTime}s`,
 				gasUsed: receipt.gasUsed.toString(),
 				transactionHash: tx.hash,
-				explorerUrl: `${networkConfig.explorerUrl}/${tx.hash}`,
+				explorerUrl: explorerUrl,
 			},
 			timing: {
 				requestToService: parseFloat(requestToService),
