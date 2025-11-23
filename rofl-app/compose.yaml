@@ -1,0 +1,10 @@
+services:
+  x402-tee-app:
+    image: docker.io/library/node:18-alpine
+    command: ["sh", "-c", "echo 'TEE app placeholder' && sleep infinity"]
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - /storage/data:/storage/data

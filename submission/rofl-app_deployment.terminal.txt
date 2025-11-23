@@ -1,0 +1,319 @@
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$ cd /home/hamiha70/Projects/ETHGlobal/x402-escrow/rofl-app
+oasis rofl create --network testnet --paratime sapphire
+Unlock your account.
+? Passphrase: ******************
+You are about to sign the following transaction:
+Format: plain
+Method: rofl.Create
+Body:
+  {
+    "policy": {
+      "quotes": {
+        "pcs": {
+          "tcb_validity_period": 30,
+          "min_tcb_evaluation_data_number": 18,
+          "tdx": {}
+        }
+      },
+      "enclaves": [],
+      "endorsements": [
+        {
+          "any": {}
+        }
+      ],
+      "fees": 2,
+      "max_expiration": 3
+    },
+    "scheme": 1,
+    "metadata": {
+      "net.oasis.rofl.name": "x402-tee-rofl-app",
+      "net.oasis.rofl.version": "1.0.0"
+    }
+  }
+Authorized signer(s):
+  1. bVUWCf0fCZ4HozhLjvbQ40Q7y1I1tQ9UlJHS0x/qCUg= (ed25519)
+     Nonce: 0
+Fee:
+  Amount: 0.0121776 TEST
+  Gas limit: 121776
+  (gas price: 0.0000001 TEST per gas unit)
+
+Network:  testnet
+ParaTime: sapphire
+Account:  x402_deployer
+? Sign this transaction? Yes
+(In case you are using a hardware-based signer you may need to confirm on device.)
+Broadcasting transaction...
+Transaction included in block successfully.
+Round:            14503322
+Transaction hash: 4f85bcab7f788a6b2e30f9141b4e373db993da34b2ba7ae3184ea53accec1014
+Execution successful.
+Created ROFL app: rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759
+Run `oasis rofl build` to build your ROFL app.
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$
+
+
+
+# Run on a different port (8081)
+docker run -p 8081:8080 \
+  -e NODE_ENV=development \
+  -e PORT=8080 \
+  -e TEE_LEDGER_PATH=/data/tee-ledger.json \
+  ghcr.io/hamiha70/x402-tee-rofl-app:latest
+
+# In another terminal, test:
+curl http://localhost:8081/health
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      -                 
+tcp6       0      0 :::8080                 :::*                    LISTEN      -                 
+2025-11-22T23:13:47.771Z [INFO] [tee-rofl] Initializing TEE services...
+2025-11-22T23:13:47.772Z [INFO] [tee-rofl] Ledger initialized at /data/tee-ledger.json
+2025-11-22T23:13:47.772Z [INFO] [tee-rofl] Supported chains: 80002, 84532, 421614, 5042002, 11155420
+2025-11-22T23:13:47.776Z [INFO] [tee-rofl] ==================================================
+2025-11-22T23:13:47.776Z [INFO] [tee-rofl] x402 TEE ROFL App running on port 8080
+2025-11-22T23:13:47.776Z [INFO] [tee-rofl] Ledger: /data/tee-ledger.json
+2025-11-22T23:13:47.776Z [INFO] [tee-rofl] Chains: Polygon Amoy, Base Sepolia, Arbitrum Sepolia, Arc Testnet, Optimism Sepolia
+2025-11-22T23:13:47.776Z [INFO] [tee-rofl] ==================================================
+
+
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$ cd /home/hamiha70/Projects/ETHGlobal/x402-escrow/rofl-app
+
+# Step 1: Build the ROFL bundle (as shown in cheatsheet)
+oasis rofl build
+Building a ROFL application...
+Deployment: default
+Network:    testnet
+ParaTime:   sapphire
+Debug:      false
+App ID:     rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759
+Name:       x402-tee-rofl-app
+Version:    1.0.0
+TEE:        tdx
+Kind:       container
+
+Building a container-based TDX ROFL application...
+Downloading firmware artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/ovmf.tdx.fd
+Downloading kernel artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage1.bin
+Downloading stage 2 template artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage2-podman.tar.bz2
+Downloading rofl-container runtime artifact...
+  URI: https://github.com/oasisprotocol/oasis-sdk/releases/download/rofl-containers%2Fv0.8.0/rofl-containers
+Downloading compose.yaml artifact...
+  URI: compose.yaml
+Validating compose file...
+Error: compose file validation failed: unable to fetch manifest for image 'ghcr.io/hamiha70/x402-tee-rofl-app:latest': GET "https://ghcr.io/v2/hamiha70/x402-tee-rofl-app/manifests/latest": GET "https://ghcr.io/token?scope=repository%3Ahamiha70%2Fx402-tee-rofl-app%3Apull&service=ghcr.io": response status code 403: denied: requested access to the resource is denied
+Use --force to ignore this check
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$
+
+
+Building a ROFL application...
+Deployment: default
+Network:    testnet
+ParaTime:   sapphire
+Debug:      false
+App ID:     rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759
+Name:       x402-tee-rofl-app
+Version:    1.0.0
+TEE:        tdx
+Kind:       container
+
+Building a container-based TDX ROFL application...
+Downloading firmware artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/ovmf.tdx.fd
+  (using cached artifact)
+Downloading kernel artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage1.bin
+  (using cached artifact)
+Downloading stage 2 template artifact...
+  URI: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage2-podman.tar.bz2
+  (using cached artifact)
+Downloading rofl-container runtime artifact...
+  URI: https://github.com/oasisprotocol/oasis-sdk/releases/download/rofl-containers%2Fv0.8.0/rofl-containers
+  (using cached artifact)
+Downloading compose.yaml artifact...
+  URI: compose.yaml
+Validating compose file...
+Warning: compose file validation failed: unable to fetch manifest for image 'ghcr.io/hamiha70/x402-tee-rofl-app:latest': GET "https://ghcr.io/v2/hamiha70/x402-tee-rofl-app/manifests/latest": GET "https://ghcr.io/token?scope=repository%3Ahamiha70%2Fx402-tee-rofl-app%3Apull&service=ghcr.io": response status code 403: denied: requested access to the resource is denied
+Proceeding by force as requested
+Preparing stage 2 root filesystem...
+Unpacking template...
+Adding runtime as init...
+Runtime hash: 08eb5bbe5df26af276d9a72e9fd7353b3a90b7d27e1cf33e276a82dfd551eec6
+Adding extra files...
+Creating squashfs filesystem...
+Creating tar archive: /tmp/oasis-build302935635/rootfs.squashfs.tar
+TAR archive SHA256: fed341d3b74c579b00147ef3b577001da4ed2e31f3458509c0e822ffdf68a115
+Creating dm-verity hash tree...
+Creating ORC bundle...
+ROFL app built and bundle written to 'x402-tee-rofl-app.default.orc'.
+Computing enclave identity...
+Run `oasis rofl update` to update your ROFL app's on-chain configuration.
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$
+
+
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$ cd /home/hamiha70/Projects/ETHGlobal/x402-escrow/rofl-app
+oasis rofl update
+Unlock your account.
+? Passphrase: ******************
+You are about to sign the following transaction:
+Format: plain
+Method: rofl.Update
+Body:
+  {
+    "id": "rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759",
+    "policy": {
+      "quotes": {
+        "pcs": {
+          "tcb_validity_period": 30,
+          "min_tcb_evaluation_data_number": 18,
+          "tdx": {}
+        }
+      },
+      "enclaves": [
+        "RG9hZNOyPRrR6m3XJGA5ieH+ODAkVzyNkNYoWURwvpQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+        "wWbMdIeOMZ8b2iqhmRup33wusVovA4+omd+s9PCNZdcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      ],
+      "endorsements": [
+        {
+          "any": {}
+        }
+      ],
+      "fees": 2,
+      "max_expiration": 3
+    },
+    "admin": "oasis1qqkvnwaha30x2chpg3ejs3pdt9pc52a6ygj4w5rl",
+    "metadata": {
+      "net.oasis.rofl.name": "x402-tee-rofl-app",
+      "net.oasis.rofl.version": "1.0.0"
+    }
+  }
+Authorized signer(s):
+  1. bVUWCf0fCZ4HozhLjvbQ40Q7y1I1tQ9UlJHS0x/qCUg= (ed25519)
+     Nonce: 1
+Fee:
+  Amount: 0.0122046 TEST
+  Gas limit: 122046
+  (gas price: 0.0000001 TEST per gas unit)
+
+Network:  testnet
+ParaTime: sapphire
+Account:  x402_deployer
+? Sign this transaction? Yes
+(In case you are using a hardware-based signer you may need to confirm on device.)
+Broadcasting transaction...
+Transaction included in block successfully.
+Round:            14503591
+Transaction hash: dc2913881d54d1dec4c1c0d510767ca2bda58610e494aee68dd42cb554776eae
+Execution successful.
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$
+
+
+
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$ oasis rofl deploy
+Downloading compose.yaml artifact...
+  URI: compose.yaml
+Using provider: oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz (oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz)
+Unlock your account.
+? Passphrase: ******************
+Pushing ROFL app to OCI repository 'rofl.sh/515a7b07-0db1-4820-99e0-c1433470dbc8:1763854290'...
+Pushing... 100.00% [#################################################] 84.65 MiB
+No pre-existing machine configured, creating a new one...
+Taking offer:
+- playground_short [0000000000000003]
+  TEE: tdx | Memory: 4096 MiB | vCPUs: 2 | Storage: 19.53 GiB
+  Note: ⚠️ Testnet ROFLs only. Do not use in production! ⚠️
+  Description:
+    Demo machine suitable for oracles, AI agents and light-weight web apps.
+    If you are running a local LLM, make sure it fits main memory (e.g.
+    gemma3:1b, deepseek-r1:1.5b)!
+  Price: 5.0 TEST/hour
+Selected per-hour pricing term, total price is 5.0 TEST.
+WARNING: Machine rental is non-refundable. You will not get a refund for the already paid term if you cancel.
+You are about to sign the following transaction:
+Format: plain
+Method: roflmarket.InstanceCreate
+Body:
+  {
+    "provider": "oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz",
+    "offer": "0000000000000003",
+    "deployment": {
+      "app_id": "rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759",
+      "manifest_hash": "882d04c0eb991748aadec84727d8322b62fb0a0352d2e2a31fbdac74e231c8ef",
+      "metadata": {
+        "net.oasis.deployment.orc.ref": "rofl.sh/515a7b07-0db1-4820-99e0-c1433470dbc8:1763854290@sha256:29709315a0ef8c955d63e14d1d58ca0459de3f240da7e852644e45f77d74883b"
+      }
+    },
+    "term": 1,
+    "term_count": 1
+  }
+Authorized signer(s):
+  1. bVUWCf0fCZ4HozhLjvbQ40Q7y1I1tQ9UlJHS0x/qCUg= (ed25519)
+     Nonce: 2
+Fee:
+  Amount: 0.0121918 TEST
+  Gas limit: 121918
+  (gas price: 0.0000001 TEST per gas unit)
+
+Network:  testnet
+ParaTime: sapphire
+Account:  x402_deployer
+? Sign this transaction? Yes
+(In case you are using a hardware-based signer you may need to confirm on device.)
+Broadcasting transaction...
+Transaction included in block successfully.
+Round:            14503684
+Transaction hash: 763922571cbf7e6ea84679ac5c8951a54ea795cd7bf2e331102965eb696659d2
+Execution successful.
+Created machine: 0000000000000460
+Deployment into machine scheduled.
+This machine expires on 2025-11-23 01:38:42 +0100 CET. Use `oasis rofl machine top-up` to extend it.
+Use `oasis rofl machine show` to check status.
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$
+
+
+hamiha70@DellXPS15:~/Projects/ETHGlobal/x402-escrow/rofl-app$ cd /home/hamiha70/Projects/ETHGlobal/x402-escrow/rofl-app
+
+# Check machine status
+oasis rofl machine show
+
+# View logs (if available)
+oasis rofl machine logs
+Downloading compose.yaml artifact...
+  URI: compose.yaml
+Name:       default
+Provider:   oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz
+ID:         0000000000000460
+Offer:      0000000000000003
+Status:     accepted
+Creator:    oasis1qqkvnwaha30x2chpg3ejs3pdt9pc52a6ygj4w5rl
+Admin:      oasis1qqkvnwaha30x2chpg3ejs3pdt9pc52a6ygj4w5rl
+Node ID:    bOlqho9R3JHP64kJk+SfMxZt5fNkYWf6gdhErWlY60E=
+Created at: 2025-11-23 00:38:42 +0100 CET
+Updated at: 2025-11-23 00:39:16 +0100 CET
+Paid until: 2025-11-23 01:38:42 +0100 CET
+Proxy:
+  Domain: m1120.test-proxy-b.rofl.app
+  Ports from compose file:
+    8080 (x402-tee-app): https://p8080.m1120.test-proxy-b.rofl.app
+Metadata:
+  net.oasis.scheduler.rak: +Ru7Rah07U2R4DeacwhtuMmdhcw3L8na6fl5itK4Knw=
+Resources:
+  TEE:     Intel TDX
+  Memory:  4096 MiB
+  vCPUs:   2
+  Storage: 20000 MiB
+Deployment:
+  App ID: rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759
+  Metadata:
+    net.oasis.deployment.orc.ref: rofl.sh/515a7b07-0db1-4820-99e0-c1433470dbc8:1763854290@sha256:29709315a0ef8c955d63e14d1d58ca0459de3f240da7e852644e45f77d74883b
+Commands:
+  <no queued commands>
+Unlock your account.
+? Passphrase: ******************
+{"level":"warn","module":"runtime","msg":"\u001b[2J\u001b[01;01H\u001b[=3h\u001b[2J\u001b[01;01H[    0.000000] tdx: Guest detected","ts":"2025-11-22T23:39:21.097861601Z"}
+{"level":"warn","module":"runtime","msg":"[    0.000000] Linux version 6.12.41-yocto-tiny (oe-user@oe-host) (x86_64-poky-linux-gcc (GCC) 13.3.0, GNU ld (GNU Binutils) 2.42.0.20240716) #1 SMP PREEMPT Fri Aug  8 02:24:03 UTC 2025","ts":"2025-11-22T23:39:21.103113922Z"}
+{"level":"warn","module":"runtime","msg":"[    0.000000] Command line: console=ttyS0 oasis.stage2.roothash=27ca231eed9ede84af8322921af46888be0bdd9f5658cf1eac809751b952a1ae oasis.stage2.hash_offset=72740864 oasis.stage2.storage_mode=custom oasis.stage2.storage_size=1048576 oasis.stage2.storage_offset=4194304 ROFL_APP_ID=rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759 ROFL_CONSENSUS_TRUST_ROOT=pGRoYXNoeEAwN2FhNGRmMTRkMWJkM2ZkZmQ4NjRkMDExNWI0Njg5M2IwZjQwNjI5ZTVkMWQ3NmFlY2FhMTdmNWUxNzU4ZDFhZmhlaWdodBoBwYqAanJ1bnRpbWVfaWRYIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKbR4+v2Df9sbWNoYWluX2NvbnRleHR4QDBiOTFiOGU0ZTQ0YjIwMDNhN2M1ZTIzZGRhZGI1ZTE0ZWY1MzQ1YzBlYmNiM2RkY2FlMDdmYTJmMjQ0Y2FiNzY=","ts":"2025-11-22T23:39:21.120749714Z"}
+{"level":"warn","module":"runtime","msg":"[   42.172455]  irqentry_exit+0x12/0x39","ts":"2025-11-22T23:40:03.595820861Z"}

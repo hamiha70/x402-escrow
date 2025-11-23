@@ -1,61 +1,45 @@
 name: x402-tee-rofl-app
 version: 1.0.0
-runtime: container
-image: ./Dockerfile
-
-# HTTP endpoints exposed by ROFL app (inside TEE)
-endpoints:
-  - path: /settle
-    methods: [POST]
-  - path: /balance/{address}
-    methods: [GET]
-  - path: /balance
-    methods: [GET]
-  - path: /activity
-    methods: [GET]
-  - path: /activity/{address}
-    methods: [GET]
-  - path: /health
-    methods: [GET]
-  - path: /attestation
-    methods: [GET]
-
-# Secrets managed by ROFL KMS (encrypted in TEE)
-secrets:
-  # RPC URLs for blockchain access
-  - BASE_SEPOLIA_RPC
-  - POLYGON_AMOY_RPC
-  - ARBITRUM_SEPOLIA_RPC
-  - OPTIMISM_SEPOLIA_RPC
-  - ARC_TESTNET_RPC
-  
-  # TEE facilitator private keys (one per chain)
-  - TEE_FACILITATOR_PRIVATE_KEY_BASE
-  - TEE_FACILITATOR_PRIVATE_KEY_POLYGON
-  - TEE_FACILITATOR_PRIVATE_KEY_ARBITRUM
-  - TEE_FACILITATOR_PRIVATE_KEY_OPTIMISM
-  - TEE_FACILITATOR_PRIVATE_KEY_ARC
-  
-  # Omnibus vault addresses
-  - OMNIBUS_VAULT_BASE_SEPOLIA
-  - OMNIBUS_VAULT_POLYGON_AMOY
-  - OMNIBUS_VAULT_ARBITRUM_SEPOLIA
-  - OMNIBUS_VAULT_OPTIMISM_SEPOLIA
-  - OMNIBUS_VAULT_ARC_TESTNET
-  
-  # USDC addresses
-  - USDC_BASE_SEPOLIA
-  - USDC_POLYGON_AMOY
-  - USDC_ARBITRUM_SEPOLIA
-  - USDC_OPTIMISM_SEPOLIA
-  - USDC_ARC_TESTNET
-
-# Sealed storage (encrypted by TEE)
-storage:
-  - mount: /data
-    encrypted: true
-    persistent: true
-
-# Network configuration
-network:
-  allow_outbound: true  # Required for RPC calls to external chains
+tee: tdx
+kind: container
+resources:
+  memory: 512
+  cpus: 1
+  storage:
+    kind: disk-persistent
+    size: 512
+artifacts:
+  firmware: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/ovmf.tdx.fd
+  kernel: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage1.bin
+  stage2: https://github.com/oasisprotocol/oasis-boot/releases/download/v0.6.2/stage2-podman.tar.bz2
+  container:
+    runtime: https://github.com/oasisprotocol/oasis-sdk/releases/download/rofl-containers%2Fv0.8.0/rofl-containers
+    compose: compose.yaml
+deployments:
+  default:
+    app_id: rofl1qpjxuyr6v5pmwkx9nc3k6pez9ks25wlv8ujnj759
+    network: testnet
+    paratime: sapphire
+    admin: x402_deployer
+    oci_repository: rofl.sh/515a7b07-0db1-4820-99e0-c1433470dbc8:1763854290
+    trust_root:
+      height: 29461120
+      hash: 07aa4df14d1bd3fdfd864d0115b46893b0f40629e5d1d76aecaa17f5e1758d1a
+    policy:
+      quotes:
+        pcs:
+          tcb_validity_period: 30
+          min_tcb_evaluation_data_number: 18
+          tdx: {}
+      enclaves:
+        - id: PeLbye2eNyy1QLY/7L532JJWtkxvzIKVoweeL0sD9VYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+        - id: ShHSINlfjzmWKOeJNmqiUcJmDJ+cCDkx/xomg1IKIH0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+      endorsements:
+        - any: {}
+      fees: endorsing_node
+      max_expiration: 3
+    machines:
+      default:
+        provider: oasis1qp2ens0hsp7gh23wajxa4hpetkdek3swyyulyrmz
+        offer: playground_short
+        id: "0000000000000460"
