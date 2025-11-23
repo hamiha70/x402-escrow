@@ -33,39 +33,18 @@
           </select>
         </div>
 
-        <!-- Scheme Tabs -->
+        <!-- Payment Scheme Buttons (Click to Run) -->
         <div class="control-section">
-          <label>Payment Scheme:</label>
-          <div class="scheme-tabs">
-            <button class="tab active" data-scheme="exact">x402-exact</button>
-            <button class="tab" data-scheme="escrow-deferred">
+          <label>PAYMENT SCHEME:</label>
+          <div class="scheme-buttons">
+            <button class="scheme-btn" data-scheme="exact">x402-exact</button>
+            <button class="scheme-btn" data-scheme="escrow-deferred">
               Escrow-Deferred
             </button>
-            <button class="tab disabled" data-scheme="tee" title="Coming soon">
-              TEE
-            </button>
-            <button class="tab disabled" data-scheme="zk" title="Coming soon">
-              ZK
-            </button>
+            <button class="scheme-btn" data-scheme="tee">TEE</button>
+            <button class="scheme-btn" data-scheme="zk">ZK Private</button>
           </div>
         </div>
-
-        <!-- Scheme Info -->
-        <div class="control-section scheme-info" id="scheme-info">
-          <h3>x402-exact</h3>
-          <p class="scheme-desc">Reference Implementation</p>
-          <div class="metrics-badges">
-            <span class="badge">⏱️ ~9s</span>
-            <span class="badge">⛽ ~85k</span>
-            <span class="badge">🔒 None</span>
-          </div>
-        </div>
-
-        <!-- Run Button -->
-        <button id="run-btn" class="run-button">
-          <span class="button-text">Run Demo Flow</span>
-          <span class="button-icon">→</span>
-        </button>
 
         <!-- Results Metrics -->
         <div class="results-panel" id="metrics" style="display: none">
@@ -87,12 +66,33 @@
         </div>
       </aside>
 
-      <!-- Right Event Flow Panel -->
+      <!-- Right Event Flow Panel - 3 Column Layout -->
       <section class="flow-panel">
-        <h2>Transaction Flow</h2>
-        <div class="events" id="events">
-          <div class="event-placeholder">
-            👈 Click "Run Demo Flow" to start the payment flow visualization
+        <div class="flow-columns">
+          <!-- Buyer Column -->
+          <div class="flow-column buyer-column">
+            <h3 class="column-header">BUYER</h3>
+            <div class="column-events" id="buyer-events">
+              <div class="event-placeholder">
+                Click a payment scheme to start
+              </div>
+            </div>
+          </div>
+
+          <!-- Facilitator Column -->
+          <div class="flow-column facilitator-column">
+            <h3 class="column-header">FACILITATOR</h3>
+            <div class="column-events" id="facilitator-events">
+              <div class="event-placeholder">Waiting...</div>
+            </div>
+          </div>
+
+          <!-- Seller Column -->
+          <div class="flow-column seller-column">
+            <h3 class="column-header">SELLER</h3>
+            <div class="column-events" id="seller-events">
+              <div class="event-placeholder">Waiting...</div>
+            </div>
           </div>
         </div>
       </section>

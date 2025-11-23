@@ -8,30 +8,6 @@ let ws = null;
 let currentScheme = 'exact';
 let isRunning = false;
 
-// Scheme info for control panel
-const SCHEME_INFO = {
-	exact: {
-		title: 'x402-exact',
-		description: 'Reference Implementation',
-		badges: ['⏱️ ~9s', '⛽ ~85k', '🔒 None']
-	},
-	'escrow-deferred': {
-		title: 'Escrow-Deferred',
-		description: 'Instant Delivery',
-		badges: ['⏱️ <100ms', '⛽ ~3k*', '🔒 None']
-	},
-	tee: {
-		title: 'TEE',
-		description: 'Privacy-Preserving',
-		badges: ['⏱️ <100ms', '⛽ ~10k*', '🔒 Full']
-	},
-	zk: {
-		title: 'ZK Private',
-		description: 'Zero-Knowledge',
-		badges: ['⏱️ <200ms', '⛽ ~15k*', '🔒 Full']
-	}
-};
-
 // Initialize WebSocket connection
 function initWebSocket() {
 	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -90,41 +66,58 @@ function handleEvent(event) {
 	}
 }
 
-// Display step (with emoji)
+// Get the correct column for an event based on role
+function getColumnForRole(role) {
+	const columnIds = {
+		'buyer': 'buyer-events',
+		'facilitator': 'facilitator-events',
+		'seller': 'seller-events'
+	};
+	return document.getElementById(columnIds[role] || 'buyer-events');
+}
+
+// Display step (with emoji) in correct column
 function displayStep(event) {
-	const eventsDiv = document.getElementById('events');
+	const column = getColumnForRole(event.role);
+	if (!column) return;
+	
 	const eventEl = document.createElement('div');
 	eventEl.className = 'event step';
+	eventEl.dataset.eventData = JSON.stringify(event);
 	
 	const stepEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];
 	const emoji = stepEmojis[event.step - 1] || '▶️';
 	
-	eventEl.innerHTML = `<strong>${emoji} Step ${event.step}:</strong> ${event.description}`;
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
+	eventEl.innerHTML = `<strong>${emoji} ${event.description}</strong>`;
+	column.appendChild(eventEl);
 }
 
-// Display HTTP request (compact)
+// Display HTTP request (compact) in correct column
 function displayHttpRequest(event) {
-	const eventsDiv = document.getElementById('events');
+	const column = getColumnForRole(event.role);
+	if (!column) return;
+	
 	const eventEl = document.createElement('div');
 	eventEl.className = 'event http-request';
+	eventEl.dataset.eventData = JSON.stringify(event);
 	
 	// Extract path from URL
-	const urlPath = event.url.replace('http://localhost:4022', '').replace('http://localhost:4023', '');
+	const urlPath = event.url.replace('http://localhost:4022', '').replace('http://localhost:4023', '').split('?')[0];
 	
-	let content = `<strong>📤 ${event.method}</strong> ${urlPath}`;
+	let content = `<strong>📤 ${event.method}</strong><br><small>${urlPath}</small>`;
 	
 	eventEl.innerHTML = content;
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
+	column.appendChild(eventEl);
 }
 
-// Display HTTP response (compact)
+// Display HTTP response (compact) in correct column
 function displayHttpResponse(event) {
-	const eventsDiv = document.getElementById('events');
+	const column = getColumnForRole(event.role);
+	if (!column) return;
+	
 	const eventEl = document.createElement('div');
 	eventEl.className = 'event http-response';
+	eventEl.dataset.eventData = JSON.stringify(event);
 	
 	const statusEmoji = event.status === 402 ? '💰' : event.status === 200 ? '✅' : '📨';
 	let content = `<strong>${statusEmoji} ${event.status}</strong> ${getStatusText(event.status)}`;
@@ -133,110 +126,102 @@ function displayHttpResponse(event) {
 	if (event.status === 402 && event.body && event.body.PaymentRequirements) {
 		const req = event.body.PaymentRequirements[0];
 		if (req) {
-			content += `<br><small>💵 Amount: ${req.amount} ${req.token}</small>`;
-			if (req.seller) {
-				content += `<br><small>🔗 Seller: ${truncateHash(req.seller)}</small>`;
-			}
+			content += `<br><small>💵 ${req.amount} ${req.token}</small>`;
 		}
 	}
 	
-	eventEl.innerHTML = content;
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
-}
-
-// Display signing event
-function displaySigning(event) {
-	const eventsDiv = document.getElementById('events');
-	const eventEl = document.createElement('div');
-	eventEl.className = 'event signing';
-	
-	let content = `<strong>🔐 Signing:</strong> ${event.message}`;
-	content += `<br><small>Signer: ${event.signer}</small>`;
-	
-	if (event.data) {
-		content += `<pre>${JSON.stringify(event.data, null, 2)}</pre>`;
+	// Show success for 200
+	if (event.status === 200) {
+		content += `<br><small>Content delivered</small>`;
 	}
 	
 	eventEl.innerHTML = content;
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
+	column.appendChild(eventEl);
 }
 
-// Display transaction (with emojis)
+// Display signing event in correct column
+function displaySigning(event) {
+	const column = getColumnForRole(event.role);
+	if (!column) return;
+	
+	const eventEl = document.createElement('div');
+	eventEl.className = 'event signing';
+	eventEl.dataset.eventData = JSON.stringify(event);
+	
+	let content = `<strong>🔐 ${event.message}</strong>`;
+	content += `<br><small>${truncateHash(event.signer)}</small>`;
+	
+	eventEl.innerHTML = content;
+	column.appendChild(eventEl);
+}
+
+// Display transaction (with emojis) in correct column
 function displayTransaction(event) {
-	const eventsDiv = document.getElementById('events');
+	const column = getColumnForRole(event.role);
+	if (!column) return;
 	
 	// Check if transaction event already exists (for updates)
-	const existingTx = Array.from(eventsDiv.children).find(
+	const existingTx = Array.from(column.children).find(
 		el => el.dataset.txHash === event.hash
 	);
 	
 	const statusEmoji = event.status === 'pending' ? '⏳' : '✅';
-	const statusText = event.status === 'pending' ? 'Pending...' : 'Confirmed';
+	const statusText = event.status === 'pending' ? 'Pending' : 'Confirmed';
 	
-	let content = `<strong>📡 Tx:</strong> <a href="${event.explorer}" target="_blank">${truncateHash(event.hash)}</a>`;
-	content += ` <span class="status-${event.status}">${statusEmoji} ${statusText}</span>`;
+	let content = `<strong>📡 Blockchain Tx</strong><br>`;
+	content += `<small>${truncateHash(event.hash)}</small><br>`;
+	content += `<small>${statusEmoji} ${statusText}</small>`;
 	if (event.gasUsed) {
-		content += `<br><small>⛽ Gas used: ${formatNumber(event.gasUsed)}</small>`;
+		content += `<br><small>⛽ ${formatNumber(event.gasUsed)} gas</small>`;
 	}
+	content += `<br><a href="${event.explorer}" target="_blank" style="font-size:0.75rem">🔗 Explorer</a>`;
 	
 	if (existingTx) {
 		// Update existing transaction status
 		existingTx.innerHTML = content;
+		existingTx.dataset.eventData = JSON.stringify(event);
 	} else {
 		// Create new transaction event
 		const eventEl = document.createElement('div');
 		eventEl.className = 'event transaction';
 		eventEl.dataset.txHash = event.hash;
+		eventEl.dataset.eventData = JSON.stringify(event);
 		eventEl.innerHTML = content;
-		eventsDiv.appendChild(eventEl);
+		column.appendChild(eventEl);
 	}
-	
-	scrollToBottom();
 }
 
 // Display completion
 function displayComplete(event) {
-	const eventsDiv = document.getElementById('events');
-	const eventEl = document.createElement('div');
-	eventEl.className = 'event complete';
-	
-	eventEl.innerHTML = `<strong>🎉 Complete!</strong> Payment flow finished successfully`;
-	
-	if (event.metrics && event.metrics.totalTime) {
-		eventEl.innerHTML += `<br><small>Total time: ${event.metrics.totalTime}</small>`;
-	}
-	
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
-	
 	// Show metrics in control panel
 	showMetrics(event.metrics);
 	
-	// Re-enable run button
-	const runBtn = document.getElementById('run-btn');
-	runBtn.disabled = false;
-	runBtn.classList.remove('loading');
+	// Reset running state
 	isRunning = false;
+	
+	// Update button states
+	document.querySelectorAll('.scheme-btn').forEach(b => {
+		b.classList.remove('running');
+	});
 }
 
-// Display error
+// Display error (show in buyer column)
 function displayError(event) {
-	const eventsDiv = document.getElementById('events');
+	const column = document.getElementById('buyer-events');
+	if (!column) return;
+	
 	const eventEl = document.createElement('div');
 	eventEl.className = 'event error';
 	
-	eventEl.innerHTML = `<strong>✗ Error:</strong> ${event.message}`;
+	eventEl.innerHTML = `<strong>✗ Error</strong><br><small>${event.message}</small>`;
 	
-	eventsDiv.appendChild(eventEl);
-	scrollToBottom();
+	column.appendChild(eventEl);
 	
-	// Re-enable run button
-	const runBtn = document.getElementById('run-btn');
-	runBtn.disabled = false;
-	runBtn.classList.remove('loading');
+	// Reset state
 	isRunning = false;
+	document.querySelectorAll('.scheme-btn').forEach(b => {
+		b.classList.remove('running');
+	});
 }
 
 // Show metrics
@@ -257,13 +242,15 @@ function showMetrics(metrics) {
 	}
 }
 
-// Clear events
+// Clear events from all columns
 function clearEvents() {
-	const eventsDiv = document.getElementById('events');
-	eventsDiv.innerHTML = '';
+	['buyer-events', 'facilitator-events', 'seller-events'].forEach(id => {
+		const column = document.getElementById(id);
+		if (column) column.innerHTML = '';
+	});
 	
 	const metricsDiv = document.getElementById('metrics');
-	metricsDiv.style.display = 'none';
+	if (metricsDiv) metricsDiv.style.display = 'none';
 }
 
 // Run demo flow
@@ -271,10 +258,6 @@ async function runDemoFlow() {
 	if (isRunning) return;
 	
 	isRunning = true;
-	const runBtn = document.getElementById('run-btn');
-	runBtn.disabled = true;
-	runBtn.classList.add('loading');
-	
 	clearEvents();
 	
 	const network = document.getElementById('network').value;
@@ -304,39 +287,16 @@ async function runDemoFlow() {
 			timestamp: Date.now()
 		});
 		
-		runBtn.disabled = false;
-		runBtn.classList.remove('loading');
 		isRunning = false;
+		// Reset button states
+		document.querySelectorAll('.scheme-btn').forEach(b => {
+			b.classList.remove('running');
+		});
 	}
 }
 
-// Update scheme info in control panel
-function updateSchemeInfo(scheme) {
-	const infoDiv = document.getElementById('scheme-info');
-	const schemeData = SCHEME_INFO[scheme];
-	
-	if (!schemeData) return;
-	
-	let html = `<h3>${schemeData.title}</h3>`;
-	html += `<p class="scheme-desc">${schemeData.description}</p>`;
-	
-	if (schemeData.badges && schemeData.badges.length > 0) {
-		html += '<div class="metrics-badges">';
-		schemeData.badges.forEach(badge => {
-			html += `<span class="badge">${badge}</span>`;
-		});
-		html += '</div>';
-	}
-	
-	infoDiv.innerHTML = html;
-}
 
 // Helper functions
-function scrollToBottom() {
-	const eventsDiv = document.getElementById('events');
-	eventsDiv.scrollTop = eventsDiv.scrollHeight;
-}
-
 function truncateHash(hash) {
 	if (!hash || hash.length < 10) return hash;
 	return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
@@ -362,29 +322,33 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Initialize WebSocket
 	initWebSocket();
 	
-	// Run button
-	document.getElementById('run-btn').addEventListener('click', runDemoFlow);
-	
-	// Scheme tabs
-	document.querySelectorAll('.tab:not(.disabled)').forEach(tab => {
-		tab.addEventListener('click', () => {
-			// Update active tab
-			document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-			tab.classList.add('active');
+	// Scheme buttons - click to run
+	document.querySelectorAll('.scheme-btn').forEach(btn => {
+		btn.addEventListener('click', async () => {
+			const scheme = btn.dataset.scheme;
 			
-			// Update current scheme
-			currentScheme = tab.dataset.scheme;
+			// Check if scheme is implemented
+			if (scheme !== 'exact' && scheme !== 'escrow-deferred') {
+				alert(`${scheme.toUpperCase()} scheme coming soon!`);
+				return;
+			}
 			
-			// Update scheme info
-			updateSchemeInfo(currentScheme);
+			// Update active state
+			document.querySelectorAll('.scheme-btn').forEach(b => {
+				b.classList.remove('running');
+				b.classList.add('completed');
+			});
+			btn.classList.remove('completed');
+			btn.classList.add('running');
 			
-			// Clear events
-			clearEvents();
+			// Run the flow
+			currentScheme = scheme;
+			await runDemoFlow();
+			
+			// Update state after completion
+			btn.classList.remove('running');
 		});
 	});
-	
-	// Initialize with exact scheme
-	updateSchemeInfo('exact');
 });
 
 // Handle page visibility (pause/resume WebSocket)

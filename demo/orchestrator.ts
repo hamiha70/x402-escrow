@@ -15,14 +15,17 @@ dotenv.config();
 const logger = createLogger("orchestrator");
 
 // Demo event types
+export type DemoEventRole = "buyer" | "facilitator" | "seller";
+
 export type DemoEvent =
-	| { type: "step"; step: number; description: string; timestamp: number }
+	| { type: "step"; step: number; description: string; role: DemoEventRole; timestamp: number }
 	| {
 			type: "http-request";
 			method: string;
 			url: string;
 			headers: Record<string, string>;
 			body?: any;
+			role: DemoEventRole;
 			timestamp: number;
 	  }
 	| {
@@ -30,6 +33,7 @@ export type DemoEvent =
 			status: number;
 			headers?: Record<string, string>;
 			body: any;
+			role: DemoEventRole;
 			timestamp: number;
 	  }
 	| {
@@ -37,6 +41,7 @@ export type DemoEvent =
 			message: string;
 			signer: string;
 			data?: any;
+			role: DemoEventRole;
 			timestamp: number;
 	  }
 	| {
@@ -45,6 +50,7 @@ export type DemoEvent =
 			explorer: string;
 			status: "pending" | "confirmed";
 			gasUsed?: string;
+			role: DemoEventRole;
 			timestamp: number;
 	  }
 	| { type: "complete"; result: any; metrics: any; timestamp: number }
@@ -103,7 +109,8 @@ export async function runExactFlow(
 		emitEvent({
 			type: "step",
 			step: 1,
-			description: "Buyer requests content from seller",
+			description: "Request content",
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -114,6 +121,7 @@ export async function runExactFlow(
 			headers: {
 				Accept: "application/json",
 			},
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -141,6 +149,7 @@ export async function runExactFlow(
 				error: "Payment required",
 				PaymentRequirements: [paymentRequirements],
 			},
+			role: "seller",
 			timestamp: Date.now(),
 		});
 
@@ -148,7 +157,8 @@ export async function runExactFlow(
 		emitEvent({
 			type: "step",
 			step: 2,
-			description: "Buyer signs payment intent (EIP-712)",
+			description: "Sign payment intent",
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -168,9 +178,10 @@ export async function runExactFlow(
 
 		emitEvent({
 			type: "signing",
-			message: "PaymentIntent (x402 HTTP layer)",
+			message: "PaymentIntent (EIP-712)",
 			signer: buyerAddress,
 			data: intent,
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -188,14 +199,6 @@ export async function runExactFlow(
 			buyerWallet
 		);
 
-		// Step 3: Sign EIP-3009 transfer authorization
-		emitEvent({
-			type: "step",
-			step: 3,
-			description: "Buyer signs EIP-3009 transfer authorization",
-			timestamp: Date.now(),
-		});
-
 		const transferAuth = {
 			from: buyerAddress,
 			to: sellerAddress,
@@ -207,9 +210,10 @@ export async function runExactFlow(
 
 		emitEvent({
 			type: "signing",
-			message: "TransferWithAuthorization (EIP-3009)",
+			message: "TransferAuth (EIP-3009)",
 			signer: buyerAddress,
 			data: transferAuth,
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -220,11 +224,12 @@ export async function runExactFlow(
 			buyerWallet
 		);
 
-		// Step 4: Submit to facilitator
+		// Step 3: Submit to facilitator
 		emitEvent({
 			type: "step",
-			step: 4,
-			description: "Submitting payment to facilitator for settlement",
+			step: 3,
+			description: "Submit payment",
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -244,12 +249,22 @@ export async function runExactFlow(
 			url: "http://localhost:4023/settle",
 			headers: {
 				"Content-Type": "application/json",
+				"x-payment": JSON.stringify(paymentPayload),
 			},
 			body: paymentPayload,
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
-		// Execute settlement on-chain
+		// Step 4: Facilitator executes settlement on-chain
+		emitEvent({
+			type: "step",
+			step: 4,
+			description: "Execute on-chain",
+			role: "facilitator",
+			timestamp: Date.now(),
+		});
+
 		const usdcAbi = [
 			"function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature) external",
 			"function balanceOf(address) view returns (uint256)",
@@ -277,14 +292,7 @@ export async function runExactFlow(
 			hash: tx.hash,
 			explorer: `${networkConfig.explorerUrl}/${tx.hash}`,
 			status: "pending",
-			timestamp: Date.now(),
-		});
-
-		// Step 5: Wait for confirmation
-		emitEvent({
-			type: "step",
-			step: 5,
-			description: "Waiting for transaction confirmation",
+			role: "facilitator",
 			timestamp: Date.now(),
 		});
 
@@ -296,6 +304,16 @@ export async function runExactFlow(
 			explorer: `${networkConfig.explorerUrl}/${tx.hash}`,
 			status: "confirmed",
 			gasUsed: receipt.gasUsed.toString(),
+			role: "facilitator",
+			timestamp: Date.now(),
+		});
+
+		// Step 5: Seller delivers content
+		emitEvent({
+			type: "step",
+			step: 5,
+			description: "Deliver content",
+			role: "seller",
 			timestamp: Date.now(),
 		});
 
@@ -304,18 +322,9 @@ export async function runExactFlow(
 			status: 200,
 			body: {
 				success: true,
-				txHash: tx.hash,
-				blockNumber: receipt.blockNumber,
-				gasUsed: receipt.gasUsed.toString(),
+				content: "Premium AI Model Output",
 			},
-			timestamp: Date.now(),
-		});
-
-		// Step 6: Content delivered
-		emitEvent({
-			type: "step",
-			step: 6,
-			description: "Content delivered to buyer",
+			role: "seller",
 			timestamp: Date.now(),
 		});
 
@@ -395,11 +404,23 @@ export async function runEscrowDeferredFlow(
 		const resource = `/api/content/premium/${networkConfig.slug}`;
 		const sellerUrl = `http://localhost:4022${resource}?scheme=x402-escrow-deferred`;
 
-		// Step 1: Check vault balance
+		// Step 1: Request content
 		emitEvent({
 			type: "step",
 			step: 1,
-			description: "Checking buyer's vault balance",
+			description: "Request content",
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
+		emitEvent({
+			type: "http-request",
+			method: "GET",
+			url: sellerUrl,
+			headers: {
+				Accept: "application/json",
+			},
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -416,24 +437,6 @@ export async function runEscrowDeferredFlow(
 
 		const balance = await vaultContract.deposits(buyerAddress);
 		logger.info(`Vault balance: ${balance.toString()} (${ethers.formatUnits(balance, 6)} USDC)`);
-
-		// Step 2: Initial request (will get 402)
-		emitEvent({
-			type: "step",
-			step: 2,
-			description: "Buyer requests content from seller",
-			timestamp: Date.now(),
-		});
-
-		emitEvent({
-			type: "http-request",
-			method: "GET",
-			url: sellerUrl,
-			headers: {
-				Accept: "application/json",
-			},
-			timestamp: Date.now(),
-		});
 
 		const paymentRequirements: PaymentRequirements = {
 			scheme: "x402-escrow-deferred",
@@ -456,14 +459,16 @@ export async function runEscrowDeferredFlow(
 				error: "Payment required",
 				PaymentRequirements: [paymentRequirements],
 			},
+			role: "seller",
 			timestamp: Date.now(),
 		});
 
-		// Step 3: Sign payment intent
+		// Step 2: Sign payment intent
 		emitEvent({
 			type: "step",
-			step: 3,
-			description: "Buyer signs payment intent (deferred settlement)",
+			step: 2,
+			description: "Sign payment intent",
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -483,9 +488,10 @@ export async function runEscrowDeferredFlow(
 
 		emitEvent({
 			type: "signing",
-			message: "PaymentIntent (escrow-deferred)",
+			message: "PaymentIntent (deferred)",
 			signer: buyerAddress,
 			data: intent,
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -503,11 +509,12 @@ export async function runEscrowDeferredFlow(
 			buyerWallet
 		);
 
-		// Step 4: Submit to facilitator for validation
+		// Step 3: Submit to facilitator
 		emitEvent({
 			type: "step",
-			step: 4,
-			description: "Submitting to facilitator for instant validation",
+			step: 3,
+			description: "Submit payment",
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
@@ -517,48 +524,54 @@ export async function runEscrowDeferredFlow(
 			url: "http://localhost:4023/validate-intent",
 			headers: {
 				"Content-Type": "application/json",
+				"x-payment": JSON.stringify({ intent, signature }),
 			},
 			body: {
 				intentStruct: intent,
 				signature: signature,
 			},
+			role: "buyer",
 			timestamp: Date.now(),
 		});
 
-		// Simulate validation response
+		// Step 4: Facilitator validates instantly
+		emitEvent({
+			type: "step",
+			step: 4,
+			description: "Validate payment",
+			role: "facilitator",
+			timestamp: Date.now(),
+		});
+
 		emitEvent({
 			type: "http-response",
 			status: 200,
 			body: {
 				valid: true,
-				buyer: buyerAddress,
-				seller: sellerAddress,
-				amount: paymentAmountRaw,
-				intentHash: ethers.keccak256(
-					ethers.AbiCoder.defaultAbiCoder().encode(
-						["address", "address", "uint256", "address", "bytes32", "uint256", "string", "uint256"],
-						[
-							intent.buyer,
-							intent.seller,
-							intent.amount,
-							intent.token,
-							intent.nonce,
-							intent.expiry,
-							intent.resource,
-							intent.chainId,
-						]
-					)
-				),
 				queued: true,
 			},
+			role: "facilitator",
 			timestamp: Date.now(),
 		});
 
-		// Step 5: Instant content delivery
+		// Step 5: Seller delivers content instantly
 		emitEvent({
 			type: "step",
 			step: 5,
-			description: "Content delivered instantly (no on-chain wait!)",
+			description: "Deliver content",
+			role: "seller",
+			timestamp: Date.now(),
+		});
+
+		emitEvent({
+			type: "http-response",
+			status: 200,
+			body: {
+				success: true,
+				content: "Premium AI Model Output",
+				delivered: "instantly",
+			},
+			role: "seller",
 			timestamp: Date.now(),
 		});
 
