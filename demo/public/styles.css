@@ -309,6 +309,75 @@ main.split-layout {
 	font-size: 1.2rem;
 }
 
+/* Queue panel (for escrow-deferred) */
+.queue-panel {
+	background: #FFF9E6;
+	padding: 1rem;
+	border-radius: 8px;
+	border-left: 4px solid #FFC107;
+	margin-bottom: 1rem;
+	animation: fadeIn 0.5s;
+}
+
+.queue-panel h3 {
+	color: #F57C00;
+	margin: 0 0 0.75rem 0;
+	font-size: 0.85rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.queue-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid #FFE0B2;
+}
+
+.queue-item:last-child {
+	border-bottom: none;
+}
+
+.queue-item .label {
+	font-weight: 600;
+	color: #666;
+	font-size: 0.85rem;
+}
+
+.queue-item .value {
+	font-weight: 700;
+	color: #2D3436;
+	font-size: 0.9rem;
+}
+
+.settle-batch-button {
+	width: 100%;
+	margin-top: 0.75rem;
+	padding: 0.75rem;
+	background: linear-gradient(135deg, #FFC107 0%, #FFB300 100%);
+	border: none;
+	border-radius: 6px;
+	color: #2D3436;
+	font-size: 0.95rem;
+	font-weight: 700;
+	cursor: pointer;
+	transition: all 0.2s;
+	box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.settle-batch-button:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+}
+
+.settle-batch-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
 /* Results panel (in control panel) */
 .results-panel {
 	background: #F0FFF8;

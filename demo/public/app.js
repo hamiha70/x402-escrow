@@ -354,35 +354,67 @@ function displayError(event) {
 
 // Show metrics and characteristics
 function showMetrics(event) {
+	const metrics = event.metrics || {};
+	const timing = event.timing || {};
+	
+	// For escrow-deferred, show queue panel instead of metrics initially
+	if (currentScheme === 'escrow-deferred' && timing.requestToPay === 'Deferred') {
+		showQueuePanel(event);
+	} else {
+		const metricsDiv = document.getElementById('metrics');
+		metricsDiv.style.display = 'block';
+		
+		// Update timing
+		const requestToService = timing.requestToService 
+			? `${timing.requestToService.toFixed(2)}s`
+			: '-';
+		const requestToPay = typeof timing.requestToPay === 'string' 
+			? timing.requestToPay 
+			: `${timing.requestToPay.toFixed(2)}s`;
+		
+		document.getElementById('time').textContent = requestToService;
+		document.getElementById('time-to-pay').textContent = requestToPay;
+		document.getElementById('gas').textContent = formatNumber(metrics.gasUsed) || '-';
+		
+		const txLink = document.getElementById('tx-link');
+		if (metrics.explorerUrl) {
+			txLink.href = metrics.explorerUrl;
+			txLink.textContent = 'View on Explorer';
+			txLink.style.display = 'inline';
+		} else {
+			txLink.style.display = 'none';
+		}
+	}
+	
+	// Update characteristics
+	updateCharacteristics(currentScheme);
+}
+
+// Show queue panel for escrow-deferred
+function showQueuePanel(event) {
+	const queuePanel = document.getElementById('queue-panel');
 	const metricsDiv = document.getElementById('metrics');
+	
+	queuePanel.style.display = 'block';
 	metricsDiv.style.display = 'block';
 	
 	const metrics = event.metrics || {};
 	const timing = event.timing || {};
 	
-	// Update timing
+	// Update queue info
+	document.getElementById('queue-pending').textContent = '1 payment';
+	document.getElementById('queue-value').textContent = '0.01 USDC';
+	document.getElementById('queue-chain').textContent = document.getElementById('network').options[document.getElementById('network').selectedIndex].text;
+	
+	// Update metrics
 	const requestToService = timing.requestToService 
 		? `${timing.requestToService.toFixed(2)}s`
 		: '-';
-	const requestToPay = typeof timing.requestToPay === 'string' 
-		? timing.requestToPay 
-		: `${timing.requestToPay.toFixed(2)}s`;
 	
 	document.getElementById('time').textContent = requestToService;
-	document.getElementById('time-to-pay').textContent = requestToPay;
-	document.getElementById('gas').textContent = formatNumber(metrics.gasUsed) || '-';
-	
-	const txLink = document.getElementById('tx-link');
-	if (metrics.explorerUrl) {
-		txLink.href = metrics.explorerUrl;
-		txLink.textContent = 'View on Explorer';
-		txLink.style.display = 'inline';
-	} else {
-		txLink.style.display = 'none';
-	}
-	
-	// Update characteristics
-	updateCharacteristics(currentScheme);
+	document.getElementById('time-to-pay').textContent = 'Deferred';
+	document.getElementById('gas').textContent = '0';
+	document.getElementById('tx-link').style.display = 'none';
 }
 
 // Clear events from all columns
@@ -497,6 +529,45 @@ document.addEventListener('DOMContentLoaded', () => {
 			btn.classList.remove('running');
 		});
 	});
+	
+	// Settle batch button
+	const settleBatchBtn = document.getElementById('settle-batch-btn');
+	if (settleBatchBtn) {
+		settleBatchBtn.addEventListener('click', async () => {
+			if (isRunning) return;
+			
+			isRunning = true;
+			settleBatchBtn.disabled = true;
+			settleBatchBtn.textContent = '⏳ Settling...';
+			
+			const network = document.getElementById('network').value;
+			
+			try {
+				const response = await fetch('/api/settle-batch', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ network })
+				});
+				
+				const data = await response.json();
+				
+				if (!response.ok) {
+					throw new Error(data.error || 'Failed to settle batch');
+				}
+				
+				// Hide queue panel
+				document.getElementById('queue-panel').style.display = 'none';
+				
+				console.log('Batch settlement started:', data);
+			} catch (error) {
+				console.error('Error settling batch:', error);
+				alert(error.message);
+				settleBatchBtn.disabled = false;
+				settleBatchBtn.textContent = '⚡ Settle Batch Now';
+				isRunning = false;
+			}
+		});
+	}
 	
 	// Show default characteristics after 5 seconds if idle
 	setTimeout(() => {

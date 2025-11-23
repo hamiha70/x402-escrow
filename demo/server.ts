@@ -189,6 +189,37 @@ app.post("/api/run-escrow-deferred", async (req, res) => {
 });
 
 /**
+ * Settle batch of pending payments
+ */
+app.post("/api/settle-batch", async (req, res) => {
+	const { network } = req.body;
+
+	if (!network) {
+		return res.status(400).json({ error: "Network slug required" });
+	}
+
+	logger.info(`Triggering batch settlement for ${network}`);
+
+	// Send immediate response
+	res.json({ success: true, message: "Batch settlement started", network });
+
+	// Run batch settlement in background and broadcast events
+	try {
+		const networkConfig = getNetworkConfig(network);
+		const { runBatchSettlement } = await import("./orchestrator.js");
+		await runBatchSettlement(networkConfig, broadcast);
+		logger.info("Batch settlement completed successfully");
+	} catch (error: any) {
+		logger.error("Error in batch settlement:", error);
+		broadcast({
+			type: "error",
+			message: error.message || "Unknown error occurred",
+			timestamp: Date.now(),
+		});
+	}
+});
+
+/**
  * Fallback route - serve index.html for all non-API routes
  */
 app.get("*", (req, res) => {

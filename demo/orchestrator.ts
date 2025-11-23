@@ -9,6 +9,7 @@ import type { NetworkConfig } from "./networks.js";
 import { createLogger } from "../shared/logger.js";
 import type { PaymentRequirements, PaymentIntent } from "../shared/types.js";
 import { signPaymentIntent, signTransferAuthorization } from "../shared/eip712.js";
+import queue from "../facilitator/services/SettlementQueue.js";
 
 dotenv.config();
 
@@ -667,3 +668,130 @@ export async function runEscrowDeferredFlow(
 	}
 }
 
+
+/**
+ * Run batch settlement for queued payments
+ */
+export async function runBatchSettlement(
+	networkConfig: NetworkConfig,
+	emitEvent: (event: DemoEvent) => void
+): Promise<void> {
+	const startTime = Date.now();
+
+	try {
+		const facilitatorPrivateKey = process.env.FACILITATOR_PRIVATE_KEY!;
+		const facilitatorAddress = process.env.FACILITATOR_WALLET_ADDRESS!;
+
+		const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
+		const facilitatorWallet = new ethers.Wallet(facilitatorPrivateKey, provider);
+
+		// Get pending queue for this network
+		const pending = queue.getPending().filter(
+			(r) => r.chainId === networkConfig.chainId && r.vault === networkConfig.vaultAddress
+		);
+
+		if (pending.length === 0) {
+			throw new Error("No pending payments to settle");
+		}
+
+		// Step 6: Batch settlement
+		emitEvent({
+			type: "step",
+			step: 6,
+			description: "Batch settle",
+			role: "facilitator",
+			timestamp: Date.now(),
+		});
+
+		// Prepare batch
+		const vaultAbi = [
+			"function batchWithdraw(tuple(address buyer, address seller, uint256 amount, address token, bytes32 nonce, uint256 expiry, string resource, uint256 chainId)[] intents, bytes[] signatures) external",
+		];
+
+		const vaultContract = new ethers.Contract(
+			networkConfig.vaultAddress!,
+			vaultAbi,
+			facilitatorWallet
+		);
+
+		const intents = pending.map((r) => r.intent);
+		const signatures = pending.map((r) => r.signature);
+
+		// Submit batch transaction
+		const tx = await vaultContract.batchWithdraw(intents, signatures);
+
+		const explorerUrl =
+			networkConfig.chainId === 80002
+				? \`https://amoy.polygonscan.com/tx/\${tx.hash}\`
+				: networkConfig.chainId === 5042002
+				? \`https://testnet.arcscan.net/tx/\${tx.hash}\`
+				: \`\${networkConfig.explorerUrl}/\${tx.hash}\`;
+
+		emitEvent({
+			type: "transaction",
+			hash: tx.hash,
+			explorer: explorerUrl,
+			status: "pending",
+			role: "facilitator",
+			facilitatorAddress: facilitatorAddress,
+			contractCall: \`Vault.batchWithdraw(\${pending.length} payments)\`,
+			timestamp: Date.now(),
+		});
+
+		const receipt = await tx.wait();
+
+		emitEvent({
+			type: "transaction",
+			hash: tx.hash,
+			explorer: explorerUrl,
+			status: "confirmed",
+			gasUsed: receipt.gasUsed.toString(),
+			role: "facilitator",
+			facilitatorAddress: facilitatorAddress,
+			contractCall: \`Vault.batchWithdraw(\${pending.length} payments)\`,
+			timestamp: Date.now(),
+		});
+
+		// Mark as settled
+		for (const record of pending) {
+			queue.markSettled(record.id, tx.hash);
+		}
+
+		const endTime = Date.now();
+		const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+
+		emitEvent({
+			type: "complete",
+			result: {
+				batchSize: pending.length,
+				settled: true,
+			},
+			metrics: {
+				totalTime: \`\${totalTime}s\`,
+				gasUsed: receipt.gasUsed.toString(),
+				transactionHash: tx.hash,
+				explorerUrl: explorerUrl,
+				batchSize: pending.length,
+			},
+			timing: {
+				requestToService: 0,
+				requestToPay: parseFloat(totalTime),
+				totalTime: parseFloat(totalTime),
+			},
+			timestamp: Date.now(),
+		});
+	} catch (error: any) {
+		logger.error("Error in batch settlement:", error);
+		const errorMessage = error.message || error.toString() || "Unknown error occurred";
+		logger.error("Error details:", {
+			message: errorMessage,
+			stack: error.stack,
+			code: error.code,
+		});
+		emitEvent({
+			type: "error",
+			message: errorMessage,
+			timestamp: Date.now(),
+		});
+	}
+}

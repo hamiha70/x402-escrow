@@ -71,6 +71,26 @@
           </div>
         </div>
 
+        <!-- Settlement Queue (for escrow-deferred) -->
+        <div class="queue-panel" id="queue-panel" style="display: none">
+          <h3>📦 SETTLEMENT QUEUE</h3>
+          <div class="queue-item">
+            <span class="label">Pending:</span>
+            <span class="value" id="queue-pending">-</span>
+          </div>
+          <div class="queue-item">
+            <span class="label">Total value:</span>
+            <span class="value" id="queue-value">-</span>
+          </div>
+          <div class="queue-item">
+            <span class="label">Chain:</span>
+            <span class="value" id="queue-chain">-</span>
+          </div>
+          <button id="settle-batch-btn" class="settle-batch-button">
+            ⚡ Settle Batch Now
+          </button>
+        </div>
+
         <!-- Results Metrics -->
         <div class="results-panel" id="metrics" style="display: none">
           <h3>📊 RESULTS</h3>
