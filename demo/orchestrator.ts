@@ -639,10 +639,16 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 	} catch (error: any) {
-		logger.error("Error in escrow-deferred flow", error);
+		logger.error("Error in escrow-deferred flow:", error);
+		const errorMessage = error.message || error.toString() || "Unknown error occurred";
+		logger.error("Error details:", {
+			message: errorMessage,
+			stack: error.stack,
+			code: error.code,
+		});
 		emitEvent({
 			type: "error",
-			message: error.message || "Unknown error occurred",
+			message: errorMessage,
 			timestamp: Date.now(),
 		});
 	}
