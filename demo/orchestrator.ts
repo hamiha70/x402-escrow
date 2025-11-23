@@ -301,7 +301,15 @@ export async function runExactFlow(
 			eip3009Signature
 		);
 
-		const explorerUrl = `https://amoy.polygonscan.com/tx/${tx.hash}`;
+		// Build explorer URL based on network
+		let explorerUrl;
+		if (networkConfig.chainId === 80002) {
+			explorerUrl = `https://amoy.polygonscan.com/tx/${tx.hash}`;
+		} else if (networkConfig.chainId === 5042002) {
+			explorerUrl = `https://testnet.arcscan.net/tx/${tx.hash}`;
+		} else {
+			explorerUrl = `${networkConfig.explorerUrl}/${tx.hash}`;
+		}
 
 		emitEvent({
 			type: "transaction",

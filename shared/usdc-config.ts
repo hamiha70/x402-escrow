@@ -38,8 +38,8 @@ export const KNOWN_USDC_DOMAINS: Record<number, { name: string; version: string 
 	80002: { name: "USDC", version: "2" },
 	// Polygon Mainnet
 	137: { name: "USD Coin", version: "2" },
-	// Arc Testnet (Circle's L3)
-	54473505: { name: "USDC", version: "2" },
+	// Arc Testnet (Circle's L3) - Correct chain ID
+	5042002: { name: "USDC", version: "2" },
 };
 
 /**

@@ -55,7 +55,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
 		explorerUrl: process.env.OPTIMISM_SEPOLIA_EXPLORER!,
 	},
 	arc: {
-		chainId: 1243,
+		chainId: 5042002,
 		name: "Arc Testnet",
 		slug: "arc",
 		rpcUrl: process.env.ARC_TESTNET_RPC!,
