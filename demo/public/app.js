@@ -152,7 +152,7 @@ function displayStep(event) {
 	column.appendChild(eventEl);
 }
 
-// Display HTTP request (compact) in correct column
+// Display HTTP request (detailed) in correct column
 function displayHttpRequest(event) {
 	const column = getColumnForRole(event.role);
 	if (!column) return;
@@ -161,16 +161,21 @@ function displayHttpRequest(event) {
 	eventEl.className = 'event http-request';
 	eventEl.dataset.eventData = JSON.stringify(event);
 	
-	// Extract path from URL
-	const urlPath = event.url.replace('http://localhost:4022', '').replace('http://localhost:4023', '').split('?')[0];
+	// Clean URL path
+	const urlPath = event.url;
 	
 	let content = `<strong>📤 ${event.method}</strong><br><small>${urlPath}</small>`;
+	
+	// Show x-payment header if present
+	if (event.headers && event.headers['x-payment']) {
+		content += `<br><small>Header: x-payment</small>`;
+	}
 	
 	eventEl.innerHTML = content;
 	column.appendChild(eventEl);
 }
 
-// Display HTTP response (compact) in correct column
+// Display HTTP response (detailed) in correct column
 function displayHttpResponse(event) {
 	const column = getColumnForRole(event.role);
 	if (!column) return;
@@ -182,11 +187,15 @@ function displayHttpResponse(event) {
 	const statusEmoji = event.status === 402 ? '💰' : event.status === 200 ? '✅' : '📨';
 	let content = `<strong>${statusEmoji} ${event.status}</strong> ${getStatusText(event.status)}`;
 	
-	// Show key details for 402
+	// Show detailed info for 402
 	if (event.status === 402 && event.body && event.body.PaymentRequirements) {
 		const req = event.body.PaymentRequirements[0];
 		if (req) {
-			content += `<br><small>💵 ${req.amount} ${req.token}</small>`;
+			content += `<br><small>Headers:</small>`;
+			if (event.headers && event.headers['x-payment-request']) {
+				content += `<br><small>  x-payment-request</small>`;
+			}
+			content += `<br><small>${req.amount} ${req.token}</small>`;
 		}
 	}
 	
@@ -199,7 +208,7 @@ function displayHttpResponse(event) {
 	column.appendChild(eventEl);
 }
 
-// Display signing event in correct column
+// Display signing event (detailed) in correct column
 function displaySigning(event) {
 	const column = getColumnForRole(event.role);
 	if (!column) return;
@@ -209,13 +218,13 @@ function displaySigning(event) {
 	eventEl.dataset.eventData = JSON.stringify(event);
 	
 	let content = `<strong>🔐 ${event.message}</strong>`;
-	content += `<br><small>${truncateHash(event.signer)}</small>`;
+	content += `<br><small>Signed by: ${truncateHash(event.signer)}</small>`;
 	
 	eventEl.innerHTML = content;
 	column.appendChild(eventEl);
 }
 
-// Display transaction (with emojis) in correct column
+// Display transaction (detailed) in correct column
 function displayTransaction(event) {
 	const column = getColumnForRole(event.role);
 	if (!column) return;
@@ -229,8 +238,18 @@ function displayTransaction(event) {
 	const statusText = event.status === 'pending' ? 'Pending' : 'Confirmed';
 	
 	let content = `<strong>📡 Blockchain Tx</strong><br>`;
-	content += `<small>${truncateHash(event.hash)}</small><br>`;
+	
+	// Show facilitator details
+	if (event.facilitatorAddress) {
+		content += `<small>Facilitator: ${truncateHash(event.facilitatorAddress)}</small><br>`;
+	}
+	if (event.contractCall) {
+		content += `<small>Calls: ${event.contractCall}</small><br>`;
+	}
+	
+	content += `<small>Tx: ${truncateHash(event.hash)}</small><br>`;
 	content += `<small>${statusEmoji} ${statusText}</small>`;
+	
 	if (event.gasUsed) {
 		content += `<br><small>⛽ ${formatNumber(event.gasUsed)} gas</small>`;
 	}

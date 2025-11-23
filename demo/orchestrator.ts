@@ -51,6 +51,8 @@ export type DemoEvent =
 			status: "pending" | "confirmed";
 			gasUsed?: string;
 			role: DemoEventRole;
+			facilitatorAddress?: string;
+			contractCall?: string;
 			timestamp: number;
 	  }
 	| { 
@@ -117,7 +119,7 @@ export async function runExactFlow(
 		const resource = `/api/content/premium/${networkConfig.slug}`;
 		const sellerUrl = `http://localhost:4022${resource}?scheme=x402-exact`;
 
-		// Step 1: Initial request (will get 402)
+		// Step 1a: Initial request
 		emitEvent({
 			type: "step",
 			step: 1,
@@ -129,7 +131,7 @@ export async function runExactFlow(
 		emitEvent({
 			type: "http-request",
 			method: "GET",
-			url: sellerUrl,
+			url: `/api/content/premium/${networkConfig.slug}`,
 			headers: {
 				Accept: "application/json",
 			},
@@ -137,7 +139,15 @@ export async function runExactFlow(
 			timestamp: Date.now(),
 		});
 
-		// Simulate 402 response
+		// Step 2: Seller responds with 402 (yellow bar with number)
+		emitEvent({
+			type: "step",
+			step: 2,
+			description: "Require payment",
+			role: "seller",
+			timestamp: Date.now(),
+		});
+
 		const paymentRequirements: PaymentRequirements = {
 			scheme: "x402-exact",
 			seller: sellerAddress,
@@ -156,6 +166,7 @@ export async function runExactFlow(
 			status: 402,
 			headers: {
 				"Content-Type": "application/json",
+				"x-payment-request": "payment required",
 			},
 			body: {
 				error: "Payment required",
@@ -165,11 +176,11 @@ export async function runExactFlow(
 			timestamp: Date.now(),
 		});
 
-		// Step 2: Create and sign payment intent (x402 signature)
+		// Step 3: Create & submit payment (combined signing + submission)
 		emitEvent({
 			type: "step",
-			step: 2,
-			description: "Sign payment intent",
+			step: 3,
+			description: "Create & submit payment",
 			role: "buyer",
 			timestamp: Date.now(),
 		});
@@ -188,15 +199,6 @@ export async function runExactFlow(
 			chainId: networkConfig.chainId,
 		};
 
-		emitEvent({
-			type: "signing",
-			message: "PaymentIntent (EIP-712)",
-			signer: buyerAddress,
-			data: intent,
-			role: "buyer",
-			timestamp: Date.now(),
-		});
-
 		// Create x402 domain
 		const x402Domain = {
 			name: "x402-Payment-Intent",
@@ -211,6 +213,15 @@ export async function runExactFlow(
 			buyerWallet
 		);
 
+		emitEvent({
+			type: "signing",
+			message: "PaymentIntent (EIP-712)",
+			signer: buyerAddress,
+			data: intent,
+			role: "buyer",
+			timestamp: Date.now(),
+		});
+
 		const transferAuth = {
 			from: buyerAddress,
 			to: sellerAddress,
@@ -220,15 +231,6 @@ export async function runExactFlow(
 			nonce: nonce, // Same nonce binds both signatures
 		};
 
-		emitEvent({
-			type: "signing",
-			message: "TransferAuth (EIP-3009)",
-			signer: buyerAddress,
-			data: transferAuth,
-			role: "buyer",
-			timestamp: Date.now(),
-		});
-
 		const eip3009Signature = await signTransferAuthorization(
 			transferAuth,
 			networkConfig.usdcAddress,
@@ -236,11 +238,11 @@ export async function runExactFlow(
 			buyerWallet
 		);
 
-		// Step 3: Submit to facilitator
 		emitEvent({
-			type: "step",
-			step: 3,
-			description: "Submit payment",
+			type: "signing",
+			message: "TransferAuth (EIP-3009)",
+			signer: buyerAddress,
+			data: transferAuth,
 			role: "buyer",
 			timestamp: Date.now(),
 		});
@@ -258,7 +260,7 @@ export async function runExactFlow(
 		emitEvent({
 			type: "http-request",
 			method: "POST",
-			url: "http://localhost:4023/settle",
+			url: "/facilitator/settle",
 			headers: {
 				"Content-Type": "application/json",
 				"x-payment": JSON.stringify(paymentPayload),
@@ -268,11 +270,11 @@ export async function runExactFlow(
 			timestamp: Date.now(),
 		});
 
-		// Step 4: Facilitator executes settlement on-chain
+		// Step 4: Facilitator settles on-chain
 		emitEvent({
 			type: "step",
 			step: 4,
-			description: "Execute on-chain",
+			description: "Settle on-chain",
 			role: "facilitator",
 			timestamp: Date.now(),
 		});
@@ -307,6 +309,8 @@ export async function runExactFlow(
 			explorer: explorerUrl,
 			status: "pending",
 			role: "facilitator",
+			facilitatorAddress: facilitatorAddress,
+			contractCall: "USDC.transferWithAuthorization",
 			timestamp: Date.now(),
 		});
 
@@ -320,6 +324,8 @@ export async function runExactFlow(
 			status: "confirmed",
 			gasUsed: receipt.gasUsed.toString(),
 			role: "facilitator",
+			facilitatorAddress: facilitatorAddress,
+			contractCall: "USDC.transferWithAuthorization",
 			timestamp: Date.now(),
 		});
 
