@@ -722,10 +722,10 @@ export async function runBatchSettlement(
 
 		const explorerUrl =
 			networkConfig.chainId === 80002
-				? \`https://amoy.polygonscan.com/tx/\${tx.hash}\`
+				? `https://amoy.polygonscan.com/tx/${tx.hash}`
 				: networkConfig.chainId === 5042002
-				? \`https://testnet.arcscan.net/tx/\${tx.hash}\`
-				: \`\${networkConfig.explorerUrl}/\${tx.hash}\`;
+				? `https://testnet.arcscan.net/tx/${tx.hash}`
+				: `${networkConfig.explorerUrl}/${tx.hash}`;
 
 		emitEvent({
 			type: "transaction",
@@ -734,7 +734,7 @@ export async function runBatchSettlement(
 			status: "pending",
 			role: "facilitator",
 			facilitatorAddress: facilitatorAddress,
-			contractCall: \`Vault.batchWithdraw(\${pending.length} payments)\`,
+			contractCall: `Vault.batchWithdraw(${pending.length} payments)`,
 			timestamp: Date.now(),
 		});
 
@@ -748,7 +748,7 @@ export async function runBatchSettlement(
 			gasUsed: receipt.gasUsed.toString(),
 			role: "facilitator",
 			facilitatorAddress: facilitatorAddress,
-			contractCall: \`Vault.batchWithdraw(\${pending.length} payments)\`,
+			contractCall: `Vault.batchWithdraw(${pending.length} payments)`,
 			timestamp: Date.now(),
 		});
 
@@ -767,7 +767,7 @@ export async function runBatchSettlement(
 				settled: true,
 			},
 			metrics: {
-				totalTime: \`\${totalTime}s\`,
+				totalTime: `${totalTime}s`,
 				gasUsed: receipt.gasUsed.toString(),
 				transactionHash: tx.hash,
 				explorerUrl: explorerUrl,
