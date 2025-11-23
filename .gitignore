@@ -74,3 +74,9 @@ lib/
 pending_intents.json
 settled_intents.json
 
+# ROFL/OCI container images (large build artifacts)
+*.orc
+*.oci
+rofl-app/*.orc
+rofl-app/*.oci
+
