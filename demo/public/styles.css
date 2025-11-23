@@ -494,14 +494,14 @@ main.split-layout {
 	border-left-color: #FFC107;
 	font-weight: 700;
 	font-size: 1.1rem;
-	padding: 1rem;
+	padding: 1rem 1rem 1rem 3.5rem;
 	position: relative;
 }
 
 .event.step::before {
 	content: attr(data-step);
 	position: absolute;
-	left: -3px;
+	left: 0.5rem;
 	top: 50%;
 	transform: translateY(-50%);
 	background: #FFC107;
