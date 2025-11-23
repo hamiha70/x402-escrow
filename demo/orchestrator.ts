@@ -174,10 +174,18 @@ export async function runExactFlow(
 			timestamp: Date.now(),
 		});
 
+		// Create x402 domain
+		const x402Domain = {
+			name: "x402-Payment-Intent",
+			version: "2",
+			chainId: networkConfig.chainId,
+			verifyingContract: "0x0000000000000000000000000000000000000402",
+		};
+
 		const x402Signature = await signPaymentIntent(
 			intent,
-			buyerWallet,
-			"0x0000000000000000000000000000000000000402" // Symbolic x402 verifying contract
+			x402Domain,
+			buyerWallet
 		);
 
 		// Step 3: Sign EIP-3009 transfer authorization
@@ -207,9 +215,9 @@ export async function runExactFlow(
 
 		const eip3009Signature = await signTransferAuthorization(
 			transferAuth,
-			buyerWallet,
 			networkConfig.usdcAddress,
-			networkConfig.chainId
+			networkConfig.chainId,
+			buyerWallet
 		);
 
 		// Step 4: Submit to facilitator
@@ -481,10 +489,18 @@ export async function runEscrowDeferredFlow(
 			timestamp: Date.now(),
 		});
 
+		// Create vault domain for escrow-deferred
+		const vaultDomain = {
+			name: "x402-Vault",
+			version: "1",
+			chainId: networkConfig.chainId,
+			verifyingContract: networkConfig.vaultAddress,
+		};
+
 		const signature = await signPaymentIntent(
 			intent,
-			buyerWallet,
-			networkConfig.vaultAddress
+			vaultDomain,
+			buyerWallet
 		);
 
 		// Step 4: Submit to facilitator for validation
