@@ -76,7 +76,7 @@ function getColumnForRole(role) {
 	return document.getElementById(columnIds[role] || 'buyer-events');
 }
 
-// Display step (with emoji) in correct column
+// Display step (with large number) in correct column
 function displayStep(event) {
 	const column = getColumnForRole(event.role);
 	if (!column) return;
@@ -84,11 +84,9 @@ function displayStep(event) {
 	const eventEl = document.createElement('div');
 	eventEl.className = 'event step';
 	eventEl.dataset.eventData = JSON.stringify(event);
+	eventEl.dataset.step = event.step;
 	
-	const stepEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];
-	const emoji = stepEmojis[event.step - 1] || '▶️';
-	
-	eventEl.innerHTML = `<strong>${emoji} ${event.description}</strong>`;
+	eventEl.innerHTML = `<strong>${event.description}</strong>`;
 	column.appendChild(eventEl);
 }
 
