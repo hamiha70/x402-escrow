@@ -22,7 +22,7 @@ const SCHEME_CHARACTERISTICS = {
 	'escrow-deferred': {
 		serviceBeforeSettle: true,
 		batchSettle: true,
-		buyerNotOnchain: true,
+		buyerNotOnchain: false, // Buyer still onchain for deposit
 		escrowRequired: true, // Required (bad)
 		trustlessFacilitator: true,
 	},
