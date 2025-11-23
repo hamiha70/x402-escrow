@@ -7,6 +7,8 @@
 let ws = null;
 let currentScheme = 'exact';
 let isRunning = false;
+let eventQueue = [];
+let isProcessingQueue = false;
 
 // Initialize WebSocket connection
 function initWebSocket() {
@@ -19,10 +21,12 @@ function initWebSocket() {
 		console.log('WebSocket connected');
 	};
 	
-	ws.onmessage = (event) => {
-		const data = JSON.parse(event.data);
-		handleEvent(data);
-	};
+ws.onmessage = (event) => {
+	const data = JSON.parse(event.data);
+	// Queue events for delayed display (1 second between events)
+	eventQueue.push(data);
+	processEventQueue();
+};
 	
 	ws.onerror = (error) => {
 		console.error('WebSocket error:', error);
@@ -34,7 +38,33 @@ function initWebSocket() {
 	};
 }
 
-// Handle incoming events
+// Process event queue with 1-second delays
+async function processEventQueue() {
+	if (isProcessingQueue) return;
+	isProcessingQueue = true;
+	
+	while (eventQueue.length > 0) {
+		const event = eventQueue.shift();
+		handleEvent(event);
+		
+		// Don't delay for 'connected' or transaction updates
+		const shouldDelay = event.type !== 'connected' && 
+			!(event.type === 'transaction' && event.status === 'confirmed');
+		
+		if (shouldDelay && eventQueue.length > 0) {
+			await sleep(1000); // 1 second delay between events
+		}
+	}
+	
+	isProcessingQueue = false;
+}
+
+// Sleep helper
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Handle incoming events (immediate, no delay here)
 function handleEvent(event) {
 	console.log('Event received:', event);
 	
@@ -242,6 +272,11 @@ function showMetrics(metrics) {
 
 // Clear events from all columns
 function clearEvents() {
+	// Clear event queue
+	eventQueue = [];
+	isProcessingQueue = false;
+	
+	// Clear columns
 	['buyer-events', 'facilitator-events', 'seller-events'].forEach(id => {
 		const column = document.getElementById(id);
 		if (column) column.innerHTML = '';
