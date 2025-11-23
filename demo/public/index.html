@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Private-Escrow x402 Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header>
+      <h1>Private-Escrow x402</h1>
+      <div class="subtitle">Trustless micropayments for the agentic web</div>
+    </header>
+
+    <main class="split-layout">
+      <!-- Left Control Panel -->
+      <aside class="control-panel">
+        <!-- Network Selector -->
+        <div class="control-section">
+          <label for="network">Select Network:</label>
+          <select id="network">
+            <option value="polygon-amoy" selected>Polygon Amoy</option>
+            <option value="base-sepolia">Base Sepolia</option>
+            <option value="arbitrum-sepolia">Arbitrum Sepolia</option>
+            <option value="optimism-sepolia">Optimism Sepolia</option>
+            <option value="arc">Arc Testnet</option>
+          </select>
+        </div>
+
+        <!-- Scheme Tabs -->
+        <div class="control-section">
+          <label>Payment Scheme:</label>
+          <div class="scheme-tabs">
+            <button class="tab active" data-scheme="exact">x402-exact</button>
+            <button class="tab" data-scheme="escrow-deferred">
+              Escrow-Deferred
+            </button>
+            <button class="tab disabled" data-scheme="tee" title="Coming soon">
+              TEE
+            </button>
+            <button class="tab disabled" data-scheme="zk" title="Coming soon">
+              ZK
+            </button>
+          </div>
+        </div>
+
+        <!-- Scheme Info -->
+        <div class="control-section scheme-info" id="scheme-info">
+          <h3>x402-exact</h3>
+          <p class="scheme-desc">Reference Implementation</p>
+          <div class="metrics-badges">
+            <span class="badge">⏱️ ~9s</span>
+            <span class="badge">⛽ ~85k</span>
+            <span class="badge">🔒 None</span>
+          </div>
+        </div>
+
+        <!-- Run Button -->
+        <button id="run-btn" class="run-button">
+          <span class="button-text">Run Demo Flow</span>
+          <span class="button-icon">→</span>
+        </button>
+
+        <!-- Results Metrics -->
+        <div class="results-panel" id="metrics" style="display: none">
+          <h3>📊 Results</h3>
+          <div class="result-item">
+            <span class="label">⏱️ Time:</span>
+            <span class="value" id="time">-</span>
+          </div>
+          <div class="result-item">
+            <span class="label">⛽ Gas:</span>
+            <span class="value" id="gas">-</span>
+          </div>
+          <div class="result-item full-width">
+            <span class="label">🔗 Explorer:</span>
+            <a id="tx-link" href="#" target="_blank" class="tx-link"
+              >View Transaction</a
+            >
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Event Flow Panel -->
+      <section class="flow-panel">
+        <h2>Transaction Flow</h2>
+        <div class="events" id="events">
+          <div class="event-placeholder">
+            👈 Click "Run Demo Flow" to start the payment flow visualization
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <span>ETHGlobal 2025</span>
+        <span class="separator">|</span>
+        <span>Oasis Privacy Track</span>
+        <span class="separator">|</span>
+        <span>Built with ❤️ for the agentic web</span>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -38,15 +38,44 @@ Three progressive implementations of x402 Payment Protocol, each solving differe
 
 ## 🚀 Quick Start
 
+### Interactive Demo UI (Recommended)
+
+The easiest way to see x402 in action:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Setup environment
+cp example.env .env
+# Edit .env with your wallets and RPCs
+
+# 3. Launch demo UI
+npm run demo:ui
+
+# 4. Open browser to http://localhost:3000
+```
+
+The demo UI provides:
+
+- **Real-time visualization** of payment flows via WebSocket
+- **Network selector** for multi-chain testing (Polygon Amoy default)
+- **Scheme comparison** between exact and escrow-deferred
+- **No wallet popups** - uses private keys from .env
+- **Transaction links** to block explorers
+
+See `demo/README.md` for detailed documentation.
+
 ### File Structure
 
 ```
 .env              # Runtime config (private keys, RPCs, API keys) - NOT in git
 deployed.env      # Deployed contract addresses - IN git for reference
 example.env       # Template for .env - IN git
+demo/             # Interactive web-based demo (NEW!)
 ```
 
-### Run the Reference Implementation (x402-exact)
+### Alternative: Run the Reference Implementation Manually
 
 ```bash
 # 1. Install dependencies
@@ -256,24 +285,22 @@ private-escrow-x402/
 ### Available Commands
 
 ```bash
+# 🎨 Interactive Demo UI (Recommended)
+npm run demo:ui         # Launch web-based demo at http://localhost:3000
+npm run demo            # Alias for demo:ui
+
 # Server management
 npm run start           # Start facilitator & seller
 npm run stop            # Stop all servers
 
-# Testing
-npm run demo:exact         # Run exact scheme demo
-npm run demo:exact:full    # Full automated demo
-npm run buyer              # Run buyer agent
-npm run seller             # Run seller server
-npm run facilitator        # Run facilitator server
+# Individual services
+npm run buyer           # Run buyer agent
+npm run seller          # Run seller server
+npm run facilitator     # Run facilitator server
 
 # Wallet management
 npm run fund            # Fund all wallets
 npm run balances        # Check balances
-
-# Coming soon
-npm run demo:escrow-deferred
-npm run demo:private-escrow-deferred
 ```
 
 ## 🎓 Why This Matters

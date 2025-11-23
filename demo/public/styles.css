@@ -1,0 +1,535 @@
+/**
+ * x402 Demo UI Styles
+ * Coral/cream design matching the mockup
+ */
+
+/* Reset and base styles */
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	background: linear-gradient(135deg, #FF6B6B 0%, #FFB6B6 100%);
+	color: #2D3436;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Header */
+header {
+	background: #FF6B6B;
+	color: #FFF8F3;
+	padding: 1rem 2rem;
+	text-align: center;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+header h1 {
+	font-size: 2rem;
+	font-weight: 800;
+	margin: 0;
+	line-height: 1.2;
+	letter-spacing: -0.01em;
+	display: inline-block;
+}
+
+.subtitle {
+	font-size: 0.85rem;
+	opacity: 0.9;
+	margin-top: 0.25rem;
+	line-height: 1.3;
+}
+
+/* Main container - Split Layout */
+main.split-layout {
+	flex: 1;
+	display: flex;
+	gap: 0;
+	width: 100%;
+	margin: 0;
+	background: #FFF8F3;
+	border-radius: 0;
+	overflow: hidden;
+	box-shadow: none;
+	min-height: calc(100vh - 120px);
+}
+
+/* Control Panel (Left Sidebar) */
+.control-panel {
+	width: 350px;
+	min-width: 350px;
+	background: white;
+	padding: 2rem 1.5rem;
+	border-right: 2px solid #FFE5E5;
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+	overflow-y: auto;
+}
+
+.control-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.control-section > label {
+	font-weight: 600;
+	color: #2D3436;
+	font-size: 0.9rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.control-section select {
+	padding: 0.75rem 1rem;
+	border: 2px solid #FF6B6B;
+	border-radius: 8px;
+	background: white;
+	color: #2D3436;
+	font-size: 0.95rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.control-section select:hover {
+	border-color: #FF5252;
+}
+
+.control-section select:focus {
+	outline: none;
+	border-color: #FF5252;
+	box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+}
+
+/* Scheme tabs (in control panel) */
+.scheme-tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.5rem;
+}
+
+.tab {
+	padding: 0.75rem 0.5rem;
+	border: 2px solid #FFE5E5;
+	background: white;
+	color: #FF6B6B;
+	border-radius: 8px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s;
+	text-align: center;
+}
+
+.tab:hover:not(.disabled) {
+	background: #FFE5E5;
+	border-color: #FF6B6B;
+}
+
+.tab.active {
+	background: #FF6B6B;
+	color: #FFF8F3;
+	border-color: #FF5252;
+}
+
+.tab.disabled {
+	opacity: 0.3;
+	cursor: not-allowed;
+	background: #F5F5F5;
+	color: #999;
+	border-color: #EEE;
+}
+
+/* Scheme info panel */
+.scheme-info {
+	background: #FFF5F5;
+	padding: 1rem;
+	border-radius: 8px;
+	border-left: 4px solid #FF6B6B;
+}
+
+.scheme-info h3 {
+	color: #FF6B6B;
+	margin: 0 0 0.25rem 0;
+	font-size: 1.1rem;
+}
+
+.scheme-desc {
+	color: #666;
+	font-size: 0.85rem;
+	margin: 0 0 0.75rem 0;
+	line-height: 1.4;
+}
+
+.metrics-badges {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.badge {
+	display: inline-block;
+	padding: 0.4rem 0.6rem;
+	background: #FFD93D;
+	color: #2D3436;
+	border-radius: 6px;
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+/* Run button (in control panel) */
+.run-button {
+	width: 100%;
+	padding: 1rem 1.5rem;
+	background: linear-gradient(135deg, #FFD93D 0%, #FFC93D 100%);
+	border: none;
+	border-radius: 10px;
+	font-size: 1.1rem;
+	font-weight: 700;
+	color: #2D3436;
+	cursor: pointer;
+	transition: all 0.3s;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.75rem;
+	box-shadow: 0 4px 12px rgba(255, 217, 61, 0.4);
+}
+
+.run-button:hover:not(:disabled) {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 16px rgba(255, 217, 61, 0.5);
+}
+
+.run-button:active {
+	transform: translateY(0);
+}
+
+.run-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.button-icon {
+	font-size: 1.3rem;
+	transition: transform 0.3s;
+}
+
+.run-button:hover:not(:disabled) .button-icon {
+	transform: translateX(4px);
+}
+
+/* Results panel (in control panel) */
+.results-panel {
+	background: #F0FFF8;
+	padding: 1rem;
+	border-radius: 8px;
+	border-left: 4px solid #00D084;
+}
+
+.results-panel h3 {
+	color: #00D084;
+	margin: 0 0 0.75rem 0;
+	font-size: 1rem;
+}
+
+.result-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid #E0F2E9;
+}
+
+.result-item:last-child {
+	border-bottom: none;
+}
+
+.result-item .label {
+	font-weight: 600;
+	color: #666;
+	font-size: 0.85rem;
+}
+
+.result-item .value {
+	font-weight: 700;
+	color: #2D3436;
+	font-size: 0.9rem;
+}
+
+.result-item.full-width {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.5rem;
+}
+
+.tx-link {
+	color: #0984E3;
+	text-decoration: none;
+	font-weight: 600;
+	font-size: 0.85rem;
+}
+
+.tx-link:hover {
+	text-decoration: underline;
+}
+
+/* Flow Panel (Right Side) */
+.flow-panel {
+	flex: 1;
+	background: #FAFAFA;
+	padding: 2rem;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.flow-panel h2 {
+	color: #FF6B6B;
+	margin: 0 0 1.5rem 0;
+	font-size: 1.5rem;
+	padding-bottom: 1rem;
+	border-bottom: 3px solid #FF6B6B;
+}
+
+.events {
+	flex: 1;
+	overflow-y: auto;
+	padding-right: 0.5rem;
+}
+
+.events::-webkit-scrollbar {
+	width: 8px;
+}
+
+.events::-webkit-scrollbar-track {
+	background: #FFE5E5;
+	border-radius: 4px;
+}
+
+.events::-webkit-scrollbar-thumb {
+	background: #FF6B6B;
+	border-radius: 4px;
+}
+
+.events::-webkit-scrollbar-thumb:hover {
+	background: #FF5252;
+}
+
+.event-placeholder {
+	padding: 3rem 2rem;
+	text-align: center;
+	color: #999;
+	font-style: italic;
+	background: white;
+	border-radius: 8px;
+	border: 2px dashed #DDD;
+	font-size: 1.1rem;
+}
+
+.event {
+	padding: 1rem;
+	margin: 0.75rem 0;
+	background: white;
+	border-left: 4px solid #FFD93D;
+	border-radius: 6px;
+	font-family: 'Monaco', 'Courier New', monospace;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	animation: slideIn 0.3s ease-out;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateX(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.event strong {
+	color: #2D3436;
+	font-weight: 700;
+}
+
+.event.step {
+	border-left-color: #FF6B6B;
+	background: #FFF5F5;
+	font-weight: 600;
+	font-family: 'Inter', sans-serif;
+}
+
+.event.http-request {
+	border-left-color: #4ECDC4;
+	background: #F0FFFE;
+}
+
+.event.http-response {
+	border-left-color: #95E1D3;
+	background: #F7FFFD;
+}
+
+.event.signing {
+	border-left-color: #A29BFE;
+	background: #F5F4FF;
+}
+
+.event.transaction {
+	border-left-color: #55EFC4;
+	background: #F0FFF8;
+}
+
+.event.complete {
+	border-left-color: #00D084;
+	background: #E8FFF5;
+	font-weight: 600;
+}
+
+.event.error {
+	border-left-color: #FF6348;
+	background: #FFF0F0;
+	color: #D63031;
+	font-weight: 600;
+}
+
+.event pre {
+	margin: 0.5rem 0 0;
+	padding: 0.75rem;
+	background: #F8F9FA;
+	border-radius: 4px;
+	overflow-x: auto;
+	font-size: 0.85rem;
+}
+
+.event a {
+	color: #0984E3;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.event a:hover {
+	text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Footer */
+footer {
+	background: #FF6B6B;
+	color: #FFF8F3;
+	padding: 1rem 2rem;
+	text-align: center;
+	margin-top: 0;
+}
+
+.footer-content {
+	max-width: 1200px;
+	margin: 0 auto;
+	font-size: 0.9rem;
+	opacity: 0.9;
+}
+
+.separator {
+	margin: 0 1rem;
+	opacity: 0.6;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+	main.split-layout {
+		flex-direction: column;
+		min-height: auto;
+	}
+
+	.control-panel {
+		width: 100%;
+		min-width: 100%;
+		border-right: none;
+		border-bottom: 2px solid #FFE5E5;
+	}
+
+	.flow-panel {
+		min-height: 500px;
+	}
+}
+
+@media (max-width: 768px) {
+	header h1 {
+		font-size: 1.5rem;
+	}
+
+	.subtitle {
+		font-size: 0.75rem;
+	}
+
+	.control-panel,
+	.flow-panel {
+		padding: 1rem;
+	}
+
+	.scheme-tabs {
+		grid-template-columns: 1fr;
+	}
+
+	.events {
+		min-height: 400px;
+	}
+
+	.footer-content {
+		font-size: 0.75rem;
+	}
+
+	.separator {
+		display: block;
+		margin: 0.25rem 0;
+		opacity: 0;
+	}
+}
+
+/* Loading state */
+.loading {
+	position: relative;
+	pointer-events: none;
+}
+
+.loading::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 20px;
+	height: 20px;
+	margin: -10px 0 0 -10px;
+	border: 3px solid #FFF8F3;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
